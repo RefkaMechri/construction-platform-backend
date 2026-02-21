@@ -10,11 +10,19 @@ async function bootstrap() {
     .setTitle('Construction Platform API')
     .setDescription('API documentation for the Construction Platform backend')
     .setVersion('1.0')
-    .addBearerAuth() // Pour JWT si tu l’ajoutes plus tard
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document); // URL: /docs
+
+  // CORS config
+  app.enableCors({
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   await app.listen(3000);
 }
