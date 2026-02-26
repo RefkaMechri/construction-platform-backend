@@ -1,36 +1,65 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async login(email: string, password: string) {
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@test.com';
-    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || '123456';
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        tenantId: true,
+      },
+    });
 
-    if (email !== superAdminEmail || password !== superAdminPassword) {
+    if (!user) {
       throw new UnauthorizedException('Email ou mot de passe invalide');
     }
 
-    const user = {
-      id: 1,
-      email: superAdminEmail,
-      role: 'SUPER_ADMIN',
-      name: 'Super Admin',
-    };
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Ajoute ça temporairement
+    console.log('password reçu:', JSON.stringify(password));
+    console.log('hash en base:', user.password);
+    console.log('résultat compare:', isPasswordValid);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Email ou mot de passe invalide');
+    }
 
     const payload = {
       sub: user.id,
       email: user.email,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       role: user.role,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      tenantId: user.tenantId,
     };
 
     const access_token = await this.jwtService.signAsync(payload);
 
     return {
       access_token,
-      user,
+      user: {
+        id: user.id,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        name: user.name,
+        email: user.email,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        role: user.role,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        tenantId: user.tenantId,
+      },
     };
   }
 }

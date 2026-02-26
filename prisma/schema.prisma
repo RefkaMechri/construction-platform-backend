@@ -15,7 +15,49 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
+  name      String
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
+  role      Role
+  tenantId   Int?
+  tenant     Tenant?   @relation(fields: [tenantId], references: [id])
+
+  @@map("users")
+}
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DIRECTEUR
+  PROJECT_MANAGER
+  CONDUCTEUR_DE_TRAVAUX
+  RESOURCE_MANAGER
+  BUDGET_MANAGER
+}
+model Tenant {
+  id        Int          @id @default(autoincrement())
+  name      String
+  email     String       @unique
+  phone     String?
+  plan      TenantPlan   @default(Basic)
+  status    TenantStatus @default(ACTIVE)
+  modules   String[]     // PostgreSQL supporte array de string ✅
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users     User[]
+
+
+  @@map("tenants")
+}
+
+enum TenantPlan {
+  Basic
+  Pro
+  Enterprise
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
 }
