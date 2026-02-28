@@ -37,16 +37,18 @@ enum Role {
 model Tenant {
   id        Int          @id @default(autoincrement())
   name      String
-  email     String       @unique
+  slug      String       @unique
+  email     String?      @unique //  optionnel (contact entreprise)
   phone     String?
+  country   String?
+  address   String?
   plan      TenantPlan   @default(Basic)
   status    TenantStatus @default(ACTIVE)
-  modules   String[]     // PostgreSQL supporte array de string ✅
+  modules   String[]     @default([])
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   users     User[]
-
 
   @@map("tenants")
 }
