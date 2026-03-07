@@ -140,7 +140,9 @@ export class TenantsService {
       ) {
         //  message plus précis
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        const target = (error.meta as any)?.target?.join?.(', ') ?? 'champ unique';
+        const target =
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          (error.meta as any)?.target?.join?.(', ') ?? 'champ unique';
         throw new ConflictException(`Conflit: ${target} déjà utilisé.`);
       }
       throw error;
