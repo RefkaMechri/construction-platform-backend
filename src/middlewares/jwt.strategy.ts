@@ -16,7 +16,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // devient req.user
     return {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      userId: payload.sub,
+      id: payload.id,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       email: payload.email,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

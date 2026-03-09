@@ -38,7 +38,7 @@ export class AuthService {
     }
 
     const payload = {
-      sub: user.id,
+      id: user.id,
       email: user.email,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       role: user.role,
