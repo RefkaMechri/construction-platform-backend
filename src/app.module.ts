@@ -7,7 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PrismaModule } from 'prisma/prisma.module';
-
+import { CompanyModule } from './modules/tenants/company.module';
 import { JwtAuthGuard } from './middlewares/jwt-auth.guard'; // 👈 ajuste le chemin si besoin
 import { ProfileModule } from './modules/profile/profile.module';
 
@@ -18,6 +18,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     AuthModule,
     TenantsModule,
     ProfileModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [
