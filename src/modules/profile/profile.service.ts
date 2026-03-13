@@ -22,13 +22,16 @@ export class ProfileService {
         role: true,
         tenantId: true,
         createdAt: true,
+        tenant: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
-
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
     }
-
     return user;
   }
 
