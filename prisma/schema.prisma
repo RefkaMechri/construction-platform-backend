@@ -22,6 +22,7 @@ model User {
   role      Role
   tenantId   Int?
   tenant     Tenant?   @relation(fields: [tenantId], references: [id])
+  status    String   @default("ACTIVE")  // ou un enum UserStatus
 
   @@map("users")
 }
