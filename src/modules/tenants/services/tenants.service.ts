@@ -10,12 +10,16 @@ import { CreateTenantDto } from '../dto/create-tenant.dto';
 import { UpdateTenantDto } from '../dto/update-tenant.dto';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, Role } from '@prisma/client';
+import { MailService } from '../../../shared/mail/mail.service';
 
 type TenantPlanValue = 'Basic' | 'Pro' | 'Enterprise';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
   private slugify(name: string): string {
     return name
       .toLowerCase()
@@ -70,45 +74,39 @@ export class TenantsService {
 
   async create(dto: CreateTenantDto) {
     try {
-      //  normalisation
       const tenantEmail = dto.email.trim().toLowerCase();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const slug = dto.slug?.trim().length
         ? dto.slug.trim()
         : this.slugify(dto.name);
 
-      //  règles automatiques (admin auto)
       const adminName = `${dto.name} Admin`;
-      const adminEmail = tenantEmail; // même email que le formulaire
+      const adminEmail = tenantEmail;
       const temporaryPassword = `${dto.name.trim().replace(/\s+/g, '')}@Admin123`;
       const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1) Create tenant
+        // 1) Créer le tenant
         const tenant = await tx.tenant.create({
           data: {
             name: dto.name,
-            slug, //
+            slug,
             email: tenantEmail,
             phone: dto.phone?.trim() ? dto.phone.trim() : null,
             country: dto.country?.trim() ? dto.country.trim() : null,
             address: dto.address?.trim() ? dto.address.trim() : null,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             plan: dto.plan as any,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             status: (dto.status ?? 'ACTIVE') as any,
             modules: this.getModulesByPlan(dto.plan),
           },
         });
 
-        // 2) Create tenant admin user
+        // 2) Créer l'admin du tenant
         const adminUser = await tx.user.create({
           data: {
             name: adminName,
             email: adminEmail,
             password: hashedPassword,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            role: Role.ADMIN, //  si tu as TENANT_ADMIN sinon ADMIN
+            role: Role.ADMIN,
             tenantId: tenant.id,
           },
           select: {
@@ -123,23 +121,24 @@ export class TenantsService {
 
         return { tenant, adminUser };
       });
+      await this.mailService.sendTenantAdminCredentials(
+        adminName,
+        adminEmail,
+        temporaryPassword,
+        result.tenant.name,
+      );
 
       return {
-        message: 'Tenant et admin créés avec succès',
+        message:
+          'Tenant et admin créés avec succès, identifiants envoyés par email.',
         tenant: result.tenant,
         adminUser: result.adminUser,
-        credentials: {
-          email: adminEmail,
-          temporaryPassword,
-        },
       };
     } catch (error: any) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        //  message plus précis
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         const target =
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call
           (error.meta as any)?.target?.join?.(', ') ?? 'champ unique';
