@@ -13,8 +13,13 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { RolesModule } from './modules/users/roles.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { ModulesModule } from './modules/subscriptions/modules.module';
+import { MailModule } from './shared/mail/mail.module';
+import { ConfigModule } from '@nestjs/config';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    MailModule,
     PrismaModule,
     UsersModule,
     AuthModule,

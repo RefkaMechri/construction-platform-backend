@@ -13,11 +13,13 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { UsersRepository } from '../repositories/users.repository';
+import { MailService } from '../../../shared/mail/mail.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly mailService: MailService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -118,13 +120,17 @@ export class UsersService {
         return { user };
       });
 
+      // ✅ Envoi email après la transaction (si transaction échoue, email non envoyé)
+      await this.mailService.sendUserCredentials(
+        name,
+        email,
+        temporaryPassword,
+      );
+
       return {
-        message: 'user créés avec succès',
+        message:
+          'Utilisateur créé avec succès, identifiants envoyés par email.',
         user: result.user,
-        credentials: {
-          email,
-          temporaryPassword,
-        },
       };
     } catch (error: any) {
       if (
