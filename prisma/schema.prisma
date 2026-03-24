@@ -64,3 +64,40 @@ enum TenantStatus {
   ACTIVE
   SUSPENDED
 }
+
+model SubscriptionPlan {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  price      Float
+  period     String   @default("/mois")
+  icon       String   @default("box")
+  isPopular  Boolean  @default(false)
+
+  usersLimit    String
+  projectsLimit String
+  storageLimit  String
+  supportType   String
+
+  features   String[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model featureModule {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  description  String
+  icon         String   @default("box")
+  category     String?
+  isBaseModule Boolean  @default(false)
+
+  starterEnabled      Boolean @default(false)
+  professionalEnabled Boolean @default(false)
+  enterpriseEnabled   Boolean @default(false)
+
+  features     String[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

@@ -11,6 +11,8 @@ import { CompanyModule } from './modules/tenants/company.module';
 import { JwtAuthGuard } from './middlewares/jwt-auth.guard';
 import { ProfileModule } from './modules/profile/profile.module';
 import { RolesModule } from './modules/users/roles.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { ModulesModule } from './modules/subscriptions/modules.module';
 @Module({
   imports: [
     PrismaModule,
@@ -20,6 +22,8 @@ import { RolesModule } from './modules/users/roles.module';
     ProfileModule,
     CompanyModule,
     RolesModule,
+    SubscriptionsModule,
+    ModulesModule,
   ],
   controllers: [AppController],
   providers: [
