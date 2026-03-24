@@ -16,7 +16,10 @@ import * as updateUserDto from '../dto/update-user.dto';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
+  @Get('all')
+  findAllUsersForSuperAdmin() {
+    return this.usersService.findAllUsersForSuperAdmin();
+  }
   //  LIST
   @Get('by-tenant/:tenantId')
   findAll(@Param('tenantId', ParseIntPipe) tenantId: number) {
@@ -34,13 +37,6 @@ export class UsersController {
   getDetails(@Param('id') id: string) {
     return this.usersService.getUserDetails(id);
   }
-
-  /*@Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOne(id);
-  }
-
-*/
 
   @Post()
   create(@Body() body: createUserDto.CreateUserDto) {
