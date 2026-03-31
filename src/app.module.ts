@@ -15,6 +15,12 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { ModulesModule } from './modules/subscriptions/modules.module';
 import { MailModule } from './shared/mail/mail.module';
 import { ConfigModule } from '@nestjs/config';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { PhasesModule } from './modules/projects/phases.module';
+import { TasksModule } from './modules/projects/tasks.module';
+import { MilestonesModule } from './modules/projects/milestones.module';
+import { TaskDependenciesModule } from './modules/projects/task-dependencies.module';
+import { CriticalPathModule } from './modules/projects/critical-path.module';
 
 @Module({
   imports: [
@@ -29,11 +35,17 @@ import { ConfigModule } from '@nestjs/config';
     RolesModule,
     SubscriptionsModule,
     ModulesModule,
+    ProjectsModule,
+    PhasesModule,
+    TasksModule,
+    MilestonesModule,
+    TaskDependenciesModule,
+    CriticalPathModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard }, // ✅ Guard global
+    { provide: APP_GUARD, useClass: JwtAuthGuard }, // Guard global
   ],
 })
 export class AppModule {}

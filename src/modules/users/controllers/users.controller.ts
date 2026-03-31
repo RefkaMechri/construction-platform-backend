@@ -26,15 +26,15 @@ export class UsersController {
     return this.usersService.findAll(tenantId);
   }
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.usersService.remove(id);
   }
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: updateUserDto.UpdateUserDto) {
+  update(@Param('id') id: number, @Body() body: updateUserDto.UpdateUserDto) {
     return this.usersService.update(id, body);
   }
   @Get(':id')
-  getDetails(@Param('id') id: string) {
+  getDetails(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.getUserDetails(id);
   }
 

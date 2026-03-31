@@ -12,9 +12,11 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+//************************************************************/
+//*            USER                                          */
+//************************************************************/
 model User {
-  id        String   @id @default(cuid())
+  id        Int   @id @default(autoincrement())
   name      String
   email     String   @unique
   password  String
@@ -25,6 +27,7 @@ model User {
   status    String   @default("ACTIVE")  
   resetPasswordTokenHash   String?
   resetPasswordExpiresAt   DateTime?
+  projects  Project[]
 
   @@map("users")
 }
@@ -37,6 +40,11 @@ enum Role {
   RESOURCE_MANAGER
   BUDGET_MANAGER
 }
+
+//************************************************************/
+//*            TENANT                                        */
+//************************************************************/
+
 model Tenant {
   id        Int          @id @default(autoincrement())
   name      String
@@ -52,6 +60,7 @@ model Tenant {
   updatedAt DateTime     @updatedAt
 
   users     User[]
+  projects  Project[]
 
   @@map("tenants")
 }
@@ -102,4 +111,194 @@ model featureModule {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+//************************************************************/
+//*            PROJET                                        */
+//************************************************************/
+
+enum ProjectStatus {
+  BROUILLON
+  EN_COURS
+  EN_PAUSE
+  TERMINE
+  ANNULE
+}
+
+enum ProjectType {
+  RESIDENTIEL
+  COMMERCIAL
+  INFRASTRUCTURE
+  INDUSTRIEL
+  AUTRE
+}
+model Project {
+  id               Int           @id @default(autoincrement())
+  name             String
+  code             String        @unique
+  client           String
+  address          String
+  startDate        DateTime
+  endDate          DateTime
+  budget           Decimal       @db.Decimal(15, 2)
+  description      String?
+  status           ProjectStatus @default(BROUILLON)
+  type             ProjectType
+
+  // Le créateur = chef de projet
+  projectManagerId Int
+  projectManager   User          @relation(fields: [projectManagerId], references: [id])
+
+  tenantId         Int
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+
+  phases           Phase[]
+  milestones       Milestone[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([projectManagerId])
+  @@index([status])
+  @@index([type])
+  @@map("projects")
+}
+
+//************************************************************/
+//*            PHASES                                        */
+//************************************************************/
+
+enum PhaseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+}
+model Phase {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      PhaseStatus @default(NOT_STARTED)
+  order       Int?
+
+  projectId   Int
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  tasks       Task[]
+  milestones  Milestone[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@map("phases")
+}
+
+//************************************************************/
+//*             TASKS                                        */
+//************************************************************/
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  startDate     DateTime?
+  endDate       DateTime?
+  status        TaskStatus      @default(TODO)
+  priority      TaskPriority    @default(MEDIUM)
+  order         Int?
+
+  phaseId       Int
+  phase         Phase            @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  predecessors  TaskDependency[] @relation("DependencySuccessor")
+  successors    TaskDependency[] @relation("DependencyPredecessor")
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([phaseId])
+  @@index([status])
+  @@index([priority])
+  @@map("tasks")
+}
+
+//************************************************************/
+//*             Milestone                                    */
+//************************************************************/
+
+enum MilestoneStatus {
+  UPCOMING
+  ACHIEVED
+  DELAYED
+  CANCELLED
+}
+
+model Milestone {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  dueDate     DateTime
+  achievedAt  DateTime?
+  status      MilestoneStatus @default(UPCOMING)
+
+  projectId   Int
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  phaseId     Int?
+  phase       Phase?          @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([projectId])
+  @@index([phaseId])
+  @@map("milestones")
+}
+
+
+//************************************************************/
+//*             Task Dependency                              */
+//************************************************************/
+
+enum TaskDependencyType {
+  FINISH_TO_START
+  START_TO_START
+  FINISH_TO_FINISH
+  START_TO_FINISH
+}
+
+model TaskDependency {
+  id                Int                @id @default(autoincrement())
+
+  predecessorTaskId Int
+  successorTaskId   Int
+  type              TaskDependencyType @default(FINISH_TO_START)
+  lagDays           Int                @default(0)
+
+  predecessorTask   Task               @relation("DependencyPredecessor", fields: [predecessorTaskId], references: [id], onDelete: Cascade)
+  successorTask     Task               @relation("DependencySuccessor", fields: [successorTaskId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime           @default(now())
+
+  @@unique([predecessorTaskId, successorTaskId])
+  @@index([predecessorTaskId])
+  @@index([successorTaskId])
+  @@map("task_dependencies")
 }

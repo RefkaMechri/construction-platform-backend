@@ -1,7 +1,7 @@
 import { Role, UserStatus } from '../types/enums';
 
 export interface UserDto {
-  id: string;
+  id: number;
   name: string;
   email: string;
   role: Role;

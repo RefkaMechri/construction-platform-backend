@@ -157,7 +157,7 @@ export class UsersService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: number) {
     const existing = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -171,7 +171,7 @@ export class UsersService {
     return { message: 'Utilisateur supprimé avec succès' };
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: number, dto: UpdateUserDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Utilisateur introuvable');
 
@@ -183,7 +183,7 @@ export class UsersService {
     });
   }
 
-  async getUserDetails(id: string) {
+  async getUserDetails(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
