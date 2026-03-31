@@ -49,9 +49,7 @@ export class AuthService {
     const payload = {
       id: user.id,
       email: user.email,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       role: user.role,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       tenantId: user.tenantId,
     };
 
@@ -61,12 +59,9 @@ export class AuthService {
       access_token,
       user: {
         id: user.id,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         name: user.name,
         email: user.email,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         role: user.role,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         tenantId: user.tenantId,
       },
     };

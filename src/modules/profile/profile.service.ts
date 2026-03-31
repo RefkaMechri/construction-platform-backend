@@ -12,7 +12,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getProfile(userId: string) {
+  async getProfile(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -35,7 +35,7 @@ export class ProfileService {
     return user;
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -60,7 +60,7 @@ export class ProfileService {
     });
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto) {
+  async changePassword(userId: number, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
