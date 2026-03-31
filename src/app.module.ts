@@ -21,6 +21,7 @@ import { TasksModule } from './modules/projects/tasks.module';
 import { MilestonesModule } from './modules/projects/milestones.module';
 import { TaskDependenciesModule } from './modules/projects/task-dependencies.module';
 import { CriticalPathModule } from './modules/projects/critical-path.module';
+import { TenantAccessModule } from './modules/tenants/tenant-access.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CriticalPathModule } from './modules/projects/critical-path.module';
     MilestonesModule,
     TaskDependenciesModule,
     CriticalPathModule,
+    TenantAccessModule,
   ],
   controllers: [AppController],
   providers: [
