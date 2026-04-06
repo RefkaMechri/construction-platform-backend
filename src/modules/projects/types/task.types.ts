@@ -11,4 +11,5 @@ export type CriticalTaskResult = {
   lf: number;
   slack: number;
   isCritical: boolean;
+  parentTaskId?: number | null;
 };

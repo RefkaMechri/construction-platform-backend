@@ -174,6 +174,7 @@ enum PhaseStatus {
   IN_PROGRESS
   COMPLETED
   ON_HOLD
+  OVERDUE
 }
 model Phase {
   id          Int         @id @default(autoincrement())
@@ -188,7 +189,6 @@ model Phase {
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   tasks       Task[]
-  milestones  Milestone[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -198,7 +198,8 @@ model Phase {
   @@map("phases")
 }
 
-//************************************************************/
+
+//************************************************************/ 
 //*             TASKS                                        */
 //************************************************************/
 enum TaskStatus {
@@ -206,6 +207,7 @@ enum TaskStatus {
   IN_PROGRESS
   DONE
   BLOCKED
+  OVERDUE
 }
 
 enum TaskPriority {
@@ -226,14 +228,23 @@ model Task {
   order         Int?
 
   phaseId       Int
-  phase         Phase            @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  phase         Phase           @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  parentTaskId  Int?
+  parentTask    Task?           @relation("TaskToSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks      Task[]          @relation("TaskToSubtasks")
+
+  milestoneId  Int?
+  milestone    Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
   predecessors  TaskDependency[] @relation("DependencySuccessor")
   successors    TaskDependency[] @relation("DependencyPredecessor")
 
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([phaseId])
+  @@index([parentTaskId])
   @@index([status])
   @@index([priority])
   @@map("tasks")
@@ -245,6 +256,7 @@ model Task {
 
 enum MilestoneStatus {
   UPCOMING
+  READY_FOR_VALIDATION
   ACHIEVED
   DELAYED
   CANCELLED
@@ -261,14 +273,12 @@ model Milestone {
   projectId   Int
   project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  phaseId     Int?
-  phase       Phase?          @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  tasks       Task[]
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([projectId])
-  @@index([phaseId])
   @@map("milestones")
 }
 

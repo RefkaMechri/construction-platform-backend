@@ -50,4 +50,12 @@ export class ProjectsRepository {
       where: { id },
     });
   }
+  async findByIdWithPhases(projectId: number) {
+    return this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        phases: true,
+      },
+    });
+  }
 }

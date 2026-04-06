@@ -23,9 +23,11 @@ import { TaskDependenciesModule } from './modules/projects/task-dependencies.mod
 import { CriticalPathModule } from './modules/projects/critical-path.module';
 import { TenantAccessModule } from './modules/tenants/tenant-access.module';
 import { GlobalTasksModule } from './modules/projects/global-tasks.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     MailModule,
     PrismaModule,

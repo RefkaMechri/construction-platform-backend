@@ -3,11 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PhaseStatus } from '@prisma/client';
+import { PhaseStatus, TaskStatus } from '@prisma/client';
 import { CreatePhaseDto } from '../dto/create-phase.dto';
 import { UpdatePhaseDto } from '../dto/update-phase.dto';
 import { PhasesRepository } from '../repositories/phases.repository';
 import { PrismaService } from 'prisma/prisma.service';
+import { ProjectsService } from './projects.service';
 
 type CurrentUser = {
   id: number;
@@ -20,6 +21,7 @@ export class PhasesService {
   constructor(
     private readonly phasesRepository: PhasesRepository,
     private readonly prisma: PrismaService,
+    private readonly projectsService: ProjectsService,
   ) {}
 
   private async getProjectOrThrow(projectId: number, tenantId: number) {
@@ -35,6 +37,54 @@ export class PhasesService {
     }
 
     return project;
+  }
+  async syncPhaseStatusFromTasks(phaseId: number) {
+    const phase = await this.prisma.phase.findUnique({
+      where: { id: phaseId },
+      include: {
+        tasks: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!phase) {
+      throw new NotFoundException('Phase introuvable.');
+    }
+
+    const tasks = phase.tasks;
+
+    let nextStatus: PhaseStatus = PhaseStatus.NOT_STARTED;
+
+    if (tasks.length === 0) {
+      nextStatus = PhaseStatus.NOT_STARTED;
+    } else {
+      const allTodo = tasks.every((task) => task.status === TaskStatus.TODO);
+      const allDone = tasks.every((task) => task.status === TaskStatus.DONE);
+      const allBlocked = tasks.every(
+        (task) => task.status === TaskStatus.BLOCKED,
+      );
+
+      if (allDone) {
+        nextStatus = PhaseStatus.COMPLETED;
+      } else if (allTodo) {
+        nextStatus = PhaseStatus.NOT_STARTED;
+      } else if (allBlocked) {
+        nextStatus = PhaseStatus.ON_HOLD;
+      } else {
+        nextStatus = PhaseStatus.IN_PROGRESS;
+      }
+    }
+
+    if (phase.status === nextStatus) {
+      return phase;
+    }
+
+    return this.phasesRepository.update(phaseId, {
+      status: nextStatus,
+    });
   }
 
   async create(createPhaseDto: CreatePhaseDto, user: CurrentUser) {
@@ -61,7 +111,7 @@ export class PhasesService {
       );
     }
 
-    return this.phasesRepository.create({
+    const createdPhase = await this.phasesRepository.create({
       name: createPhaseDto.name,
       description: createPhaseDto.description,
       startDate,
@@ -72,6 +122,10 @@ export class PhasesService {
         connect: { id: project.id },
       },
     });
+
+    await this.projectsService.refreshProjectStatus(project.id);
+
+    return createdPhase;
   }
 
   async findByProject(projectId: number, user: CurrentUser) {
@@ -120,12 +174,14 @@ export class PhasesService {
       data.status = updatePhaseDto.status;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (updatePhaseDto.order !== undefined) data.order = updatePhaseDto.order;
+
     if (updatePhaseDto.startDate !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.startDate = updatePhaseDto.startDate
         ? new Date(updatePhaseDto.startDate)
         : null;
     }
+
     if (updatePhaseDto.endDate !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.endDate = updatePhaseDto.endDate
@@ -144,7 +200,11 @@ export class PhasesService {
       );
     }
 
-    return this.phasesRepository.update(phase.id, data);
+    const updatedPhase = await this.phasesRepository.update(phase.id, data);
+
+    await this.projectsService.refreshProjectStatus(phase.projectId);
+
+    return updatedPhase;
   }
 
   async remove(id: number, user: CurrentUser) {
