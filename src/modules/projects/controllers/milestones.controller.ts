@@ -24,19 +24,17 @@ export class MilestonesController {
   }
 
   @Get('project/:projectId')
-  findByProject(
-    @Param('projectId', ParseIntPipe) projectId: number,
-    @Req() req: express.Request,
-  ) {
-    return this.service.findByProject(projectId, req.user as any);
+  findByProject(@Param('projectId', ParseIntPipe) projectId: number) {
+    return this.service.findByProject(projectId);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMilestoneDto,
+    @Req() req: express.Request,
   ) {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, req.user as any);
   }
 
   @Delete(':id')

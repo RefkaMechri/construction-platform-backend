@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ProjectStatus } from '@prisma/client';
+import { PhaseStatus, ProjectStatus } from '@prisma/client';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ProjectsRepository } from '../repositories/projects.repository';
@@ -132,5 +132,52 @@ export class ProjectsService {
   async remove(id: number, user: CurrentUser) {
     const project = await this.findOne(id, user);
     return this.projectsRepository.delete(project.id);
+  }
+  async refreshProjectStatus(projectId: number): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const project = await this.projectsRepository.findByIdWithPhases(projectId);
+
+    if (!project) {
+      throw new NotFoundException('Projet introuvable.');
+    }
+
+    // On ne touche pas à un projet annulé
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (project.status === ProjectStatus.ANNULE) {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const phases = project.phases ?? [];
+
+    // S'il n'y a aucune phase, on ne met pas TERMINE
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (phases.length === 0) {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const allCompleted = phases.every(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      (phase) => phase.status === PhaseStatus.COMPLETED,
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (allCompleted && project.status !== ProjectStatus.TERMINE) {
+      await this.projectsRepository.update(projectId, {
+        status: ProjectStatus.TERMINE,
+      });
+      return;
+    }
+
+    // Optionnel :
+    // si toutes les phases ne sont pas terminées et que le projet était TERMINE,
+    // on le remet EN_COURS
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (!allCompleted && project.status === ProjectStatus.TERMINE) {
+      await this.projectsRepository.update(projectId, {
+        status: ProjectStatus.EN_COURS,
+      });
+    }
   }
 }

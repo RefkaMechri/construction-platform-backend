@@ -93,7 +93,6 @@ export class GlobalTasksService {
         },
       },
       include: {
-        phase: true,
         project: true,
       },
       orderBy: {
@@ -128,11 +127,6 @@ export class GlobalTasksService {
       priority: null,
       startDate: milestone.dueDate ? milestone.dueDate.toISOString() : null,
       endDate: milestone.dueDate ? milestone.dueDate.toISOString() : null,
-      projectId: milestone.project.id,
-      projectName: milestone.project.name,
-      projectCode: milestone.project.code,
-      phaseId: milestone.phaseId,
-      phaseName: milestone.phase?.name || null,
     }));
 
     return [...taskEvents, ...milestoneEvents].sort((a, b) => {

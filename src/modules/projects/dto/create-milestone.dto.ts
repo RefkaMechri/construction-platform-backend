@@ -1,33 +1,34 @@
 import {
-  IsDateString,
-  IsEnum,
+  IsArray,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
+  IsDateString,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { MilestoneStatus } from '@prisma/client';
 
 export class CreateMilestoneDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 
   @IsDateString()
-  dueDate: string;
+  dueDate!: string;
+
+  @IsInt()
+  @Type(() => Number)
+  projectId!: number;
 
   @IsOptional()
-  @IsEnum(MilestoneStatus)
   status?: MilestoneStatus;
 
-  @IsInt()
-  projectId: number;
-
   @IsOptional()
-  @IsInt()
-  phaseId?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  taskIds?: number[];
 }

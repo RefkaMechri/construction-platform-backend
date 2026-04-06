@@ -8,11 +8,12 @@ import {
   Min,
 } from 'class-validator';
 import { TaskPriority, TaskStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 
 export class CreateTaskDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -36,7 +37,13 @@ export class CreateTaskDto {
 
   @IsInt()
   @Min(1)
-  phaseId: number;
+  phaseId!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  parentTaskId?: number | null;
 
   @IsOptional()
   @IsInt()
