@@ -7,5 +7,6 @@ import { MilestonesService } from './services/milestones.service';
 @Module({
   controllers: [MilestonesController],
   providers: [MilestonesService, MilestonesRepository, PrismaService],
+  exports: [MilestonesService],
 })
 export class MilestonesModule {}

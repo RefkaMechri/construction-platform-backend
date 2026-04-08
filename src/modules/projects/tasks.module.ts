@@ -6,9 +6,10 @@ import { TasksService } from './services/tasks.service';
 import { PhasesModule } from './phases.module';
 import { TasksSchedulerService } from './services/tasks-scheduler.service';
 import { ProjectsModule } from './projects.module';
+import { MilestonesModule } from './milestones.module';
 
 @Module({
-  imports: [PhasesModule, ProjectsModule],
+  imports: [PhasesModule, ProjectsModule, MilestonesModule],
   controllers: [TasksController],
   providers: [
     TasksService,
