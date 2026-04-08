@@ -9,6 +9,7 @@ import { CreateTaskDto } from '../dto/create-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { PhasesService } from './phases.service';
+import { MilestonesService } from './milestones.service';
 
 type CurrentUser = {
   id: number;
@@ -22,6 +23,7 @@ export class TasksService {
     private readonly tasksRepository: TasksRepository,
     private readonly prisma: PrismaService,
     private readonly phasesService: PhasesService,
+    private readonly milestonesService: MilestonesService,
   ) {}
 
   private async getPhaseOrThrow(phaseId: number, tenantId: number) {
@@ -293,6 +295,20 @@ export class TasksService {
 
     if (updatedTask.phaseId !== oldPhaseId) {
       await this.phasesService.syncPhaseStatusFromTasks(updatedTask.phaseId);
+    }
+    if (task.milestoneId) {
+      await this.milestonesService.refreshMilestoneStatusFromTasks(
+        task.milestoneId,
+      );
+    }
+
+    if (
+      updatedTask.milestoneId &&
+      updatedTask.milestoneId !== task.milestoneId
+    ) {
+      await this.milestonesService.refreshMilestoneStatusFromTasks(
+        updatedTask.milestoneId,
+      );
     }
 
     return updatedTask;
