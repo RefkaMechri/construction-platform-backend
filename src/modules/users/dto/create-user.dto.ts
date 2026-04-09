@@ -6,6 +6,5 @@ export interface CreateUserDto {
   password: string;
   role: Role;
   tenantId?: number;
-  phone?: string;
   status?: string;
 }

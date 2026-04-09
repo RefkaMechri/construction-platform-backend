@@ -29,6 +29,12 @@ export class AuthService {
         password: true,
         role: true,
         tenantId: true,
+        tenant: {
+          select: {
+            id: true,
+            modules: true,
+          },
+        },
       },
     });
 
@@ -37,7 +43,7 @@ export class AuthService {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    // Ajoute ça temporairement
+
     console.log('password reçu:', JSON.stringify(password));
     console.log('hash en base:', user.password);
     console.log('résultat compare:', isPasswordValid);
@@ -51,6 +57,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      modules: user.tenant?.modules || [],
     };
 
     const access_token = await this.jwtService.signAsync(payload);
@@ -63,6 +70,12 @@ export class AuthService {
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
+        tenant: user.tenant
+          ? {
+              id: user.tenant.id,
+              modules: user.tenant.modules,
+            }
+          : null,
       },
     };
   }
