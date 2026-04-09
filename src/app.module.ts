@@ -25,6 +25,7 @@ import { TenantAccessModule } from './modules/tenants/tenant-access.module';
 import { GlobalTasksModule } from './modules/projects/global-tasks.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EmployeesModule } from './modules/employees/employees.module';
+import { EquipmentModule } from './modules/Equipement/equipment.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
     TenantAccessModule,
     GlobalTasksModule,
     EmployeesModule,
+    EquipmentModule,
   ],
   controllers: [AppController],
   providers: [
