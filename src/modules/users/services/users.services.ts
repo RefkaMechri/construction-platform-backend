@@ -34,28 +34,53 @@ export class UsersService {
 
   async create(dto: CreateUserDto) {
     try {
-      console.log('Creating user with data:', dto);
+      console.log('📥 DTO reçu dans create user:', dto);
+
+      if (!dto.tenantId) {
+        throw new BadRequestException('tenantId est requis');
+      }
+
+      if (!dto.email?.trim()) {
+        throw new BadRequestException('Email requis');
+      }
+
+      if (!dto.name?.trim()) {
+        throw new BadRequestException('Nom requis');
+      }
 
       const email = dto.email.trim().toLowerCase();
       const name = dto.name.trim();
-      const temporaryPassword = `${dto.name.trim().replace(/\s+/g, '')}@User123`;
+      const status = dto.status?.trim() || 'ACTIVE';
+
+      console.log('📌 Données normalisées:', {
+        name,
+        email,
+        role: dto.role,
+        tenantId: dto.tenantId,
+        status,
+      });
+
+      const temporaryPassword = `${name.replace(/\s+/g, '')}@User123`;
       const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
       const result = await this.prisma.$transaction(async (tx) => {
-        // 1) Récupérer le tenant
+        // 1) Vérifier si le tenant existe
         const tenant = await tx.tenant.findUnique({
           where: { id: dto.tenantId },
           select: {
             id: true,
             plan: true,
+            modules: true,
           },
         });
+
+        console.log('🏢 Tenant trouvé:', tenant);
 
         if (!tenant) {
           throw new NotFoundException('Entreprise introuvable');
         }
 
-        // 2) Récupérer le plan / abonnement
+        // 2) Vérifier si le plan / abonnement existe
         const subscription = await tx.subscriptionPlan.findUnique({
           where: { name: tenant.plan },
           select: {
@@ -64,20 +89,48 @@ export class UsersService {
           },
         });
 
+        console.log('📦 Subscription trouvée:', subscription);
+
         if (!subscription) {
           throw new BadRequestException(
             "Aucun abonnement valide n'est associé à cette entreprise",
           );
         }
 
-        // 3) Compter les utilisateurs existants du tenant
+        // 3) Vérifier si le rôle demandé est autorisé par les modules du tenant
+        const moduleRoleMap: Record<string, string[]> = {
+          Planning: ['PROJECT_MANAGER', 'CONDUCTEUR_DE_TRAVAUX', 'DIRECTEUR'],
+          Ressources: ['RESOURCE_MANAGER'],
+          Budget: ['BUDGET_MANAGER'],
+        };
+
+        const allowedRoles = Array.from(
+          new Set(
+            (tenant.modules || []).flatMap(
+              (module) => moduleRoleMap[module] || [],
+            ),
+          ),
+        );
+
+        console.log('🧩 Modules du tenant:', tenant.modules);
+        console.log('✅ Rôles autorisés:', allowedRoles);
+
+        if (!allowedRoles.includes(dto.role)) {
+          throw new BadRequestException(
+            `Le rôle ${dto.role} n'est pas autorisé pour les modules activés de cette entreprise.`,
+          );
+        }
+
+        // 4) Compter les utilisateurs existants du tenant
         const usersCount = await tx.user.count({
           where: {
             tenantId: dto.tenantId,
           },
         });
 
-        // 4) Vérifier la limite
+        console.log('👥 Nombre actuel d’utilisateurs:', usersCount);
+
+        // 5) Vérifier la limite du plan
         const isUnlimited =
           subscription.usersLimit.toLowerCase() === 'illimité' ||
           subscription.usersLimit.toLowerCase() === 'unlimited';
@@ -98,7 +151,7 @@ export class UsersService {
           }
         }
 
-        // 5) Créer le user
+        // 6) Créer l’utilisateur
         const user = await tx.user.create({
           data: {
             name,
@@ -106,6 +159,7 @@ export class UsersService {
             password: hashedPassword,
             role: dto.role,
             tenantId: dto.tenantId,
+            status,
           },
           select: {
             id: true,
@@ -113,14 +167,17 @@ export class UsersService {
             email: true,
             role: true,
             tenantId: true,
+            status: true,
             createdAt: true,
           },
         });
 
+        console.log('✅ Utilisateur créé en base:', user);
+
         return { user };
       });
 
-      // ✅ Envoi email après la transaction (si transaction échoue, email non envoyé)
+      // 7) Envoyer l’email après succès de la transaction
       await this.mailService.sendUserCredentials(
         name,
         email,
@@ -133,6 +190,11 @@ export class UsersService {
         user: result.user,
       };
     } catch (error: any) {
+      console.error('❌ ERREUR CREATE USER:', error);
+      console.error('❌ error.message:', error?.message);
+      console.error('❌ error.code:', error?.code);
+      console.error('❌ error.meta:', error?.meta);
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -141,6 +203,15 @@ export class UsersService {
           (error.meta as any)?.target?.join?.(', ') ?? 'champ unique';
 
         throw new ConflictException(`Conflit: ${target} déjà utilisé.`);
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new BadRequestException(
+          'Référence invalide : tenantId ou relation associée incorrecte.',
+        );
       }
 
       throw error;

@@ -87,7 +87,7 @@ async function main() {
   });
 
   await prisma.subscriptionPlan.upsert({
-    where: { name: 'Professional' },
+    where: { name: 'Pro' },
     update: {
       price: 199,
       period: '/mois',
@@ -107,7 +107,7 @@ async function main() {
       ],
     },
     create: {
-      name: 'Professional',
+      name: 'Pro',
       price: 199,
       period: '/mois',
       icon: 'box',

@@ -24,6 +24,7 @@ import { CriticalPathModule } from './modules/projects/critical-path.module';
 import { TenantAccessModule } from './modules/tenants/tenant-access.module';
 import { GlobalTasksModule } from './modules/projects/global-tasks.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EmployeesModule } from './modules/employees/employees.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     CriticalPathModule,
     TenantAccessModule,
     GlobalTasksModule,
+    EmployeesModule,
   ],
   controllers: [AppController],
   providers: [
