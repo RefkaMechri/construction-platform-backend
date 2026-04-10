@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/require-await */
 import { Injectable } from '@nestjs/common';
 import { Prisma, Task } from '@prisma/client';
-import { PrismaService } from '../../../../prisma/prisma.service';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class TasksRepository {
