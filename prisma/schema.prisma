@@ -28,8 +28,8 @@ model User {
   resetPasswordTokenHash   String?
   resetPasswordExpiresAt   DateTime?
   projects  Project[]
-  equipments Equipment[]
-
+  equipments Equipment[] 
+  materieaux  Material[] @relation("MaterialCreatedBy")
   createdEmployees Employee[] @relation("EmployeeCreatedBy")
 
   @@map("users")
@@ -65,8 +65,8 @@ model Tenant {
   users     User[]
   projects  Project[]
   employees Employee[]
-  emquipements Equipment[]
-
+  emquipements Equipment[] 
+  materieaux   Material[] 
 
   @@map("tenants")
 }
@@ -378,4 +378,36 @@ model Equipment {
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+//************************************************************/
+//*                    Material                             */
+//************************************************************/
+
+model Material {
+  id               Int      @id @default(autoincrement())
+  name             String
+  code             String?  @unique
+  description      String?
+
+  category         String   // Cement, Sand, Steel, Wood...
+  brand            String?
+
+  quantity         Float    @default(0)
+  unit             String   // kg, ton, m3, piece, bag...
+
+  quality          String?  // HIGH, MEDIUM, LOW
+  status           String   @default("ASSIGNED") // ASSIGNED, USED, CANCELLED
+  availabilityStatus String   @default("AVAILABLE")
+
+  notes            String?
+
+  tenantId         Int
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdById      Int?
+  createdBy        User?    @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }

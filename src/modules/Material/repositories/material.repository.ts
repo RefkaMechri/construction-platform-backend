@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Equipment } from '@prisma/client';
+import { Prisma, Material } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
-export class EquipmentRepository {
+export class MaterialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: Prisma.EquipmentCreateInput): Promise<Equipment> {
-    return this.prisma.equipment.create({
+  async create(data: Prisma.MaterialCreateInput): Promise<Material> {
+    return this.prisma.material.create({
       data,
       include: {
         tenant: true,
@@ -16,8 +16,8 @@ export class EquipmentRepository {
     });
   }
 
-  async findAll(): Promise<Equipment[]> {
-    return this.prisma.equipment.findMany({
+  async findAll(): Promise<Material[]> {
+    return this.prisma.material.findMany({
       include: {
         tenant: true,
         createdBy: true,
@@ -28,8 +28,8 @@ export class EquipmentRepository {
     });
   }
 
-  async findById(id: number): Promise<Equipment | null> {
-    return this.prisma.equipment.findUnique({
+  async findById(id: number): Promise<Material | null> {
+    return this.prisma.material.findUnique({
       where: { id },
       include: {
         tenant: true,
@@ -40,9 +40,9 @@ export class EquipmentRepository {
 
   async update(
     id: number,
-    data: Prisma.EquipmentUpdateInput,
-  ): Promise<Equipment> {
-    return this.prisma.equipment.update({
+    data: Prisma.MaterialUpdateInput,
+  ): Promise<Material> {
+    return this.prisma.material.update({
       where: { id },
       data,
       include: {
@@ -52,8 +52,8 @@ export class EquipmentRepository {
     });
   }
 
-  async delete(id: number): Promise<Equipment> {
-    return this.prisma.equipment.delete({
+  async delete(id: number): Promise<Material> {
+    return this.prisma.material.delete({
       where: { id },
       include: {
         tenant: true,
