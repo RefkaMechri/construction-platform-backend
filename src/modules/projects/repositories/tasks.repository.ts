@@ -10,6 +10,27 @@ export class TasksRepository {
   async create(data: Prisma.TaskCreateInput): Promise<Task> {
     return this.prisma.task.create({ data });
   }
+  async findByProject(projectId: number) {
+    return this.prisma.task.findMany({
+      where: {
+        phase: {
+          projectId,
+        },
+        parentTaskId: null,
+      },
+      include: {
+        phase: true,
+        subtasks: {
+          orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
+      orderBy: [
+        { phase: { order: 'asc' } },
+        { order: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+  }
 
   async findByPhase(phaseId: number) {
     return this.prisma.task.findMany({

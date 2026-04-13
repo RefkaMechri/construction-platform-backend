@@ -60,4 +60,49 @@ export class EmployeesRepository {
       where: { id },
     });
   }
+  async findAllByTenantWithAssignmentsForProject(
+    tenantId: number,
+    projectId: number,
+  ) {
+    return this.prisma.employee.findMany({
+      where: {
+        tenantId,
+      },
+      include: {
+        assignments: {
+          where: {
+            task: {
+              phase: {
+                projectId,
+              },
+            },
+          },
+          include: {
+            task: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+  async findByIdWithAssignments(id: number) {
+    return this.prisma.employee.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          include: {
+            task: true,
+          },
+          orderBy: {
+            startDate: 'asc',
+          },
+        },
+      },
+    });
+  }
 }

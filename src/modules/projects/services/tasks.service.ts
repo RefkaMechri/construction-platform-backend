@@ -329,4 +329,22 @@ export class TasksService {
 
     return deletedTask;
   }
+  async findByProject(projectId: number, user: CurrentUser) {
+    if (!user.tenantId) {
+      throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
+    }
+
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        tenantId: user.tenantId,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Projet introuvable.');
+    }
+
+    return this.tasksRepository.findByProject(projectId);
+  }
 }

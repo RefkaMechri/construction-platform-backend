@@ -30,6 +30,13 @@ export class TasksController {
   ) {
     return this.tasksService.findByPhase(phaseId, req.user as any);
   }
+  @Get('project/:projectId')
+  findByProject(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Req() req: Request,
+  ) {
+    return this.tasksService.findByProject(projectId, req.user as any);
+  }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
