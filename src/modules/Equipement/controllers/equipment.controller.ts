@@ -7,20 +7,36 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { EquipmentService } from '../services/equipment.service';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
+import { EquipmentAssignmentsService } from '../services/equipmentassignments.service';
 
 @Controller('equipments')
 export class EquipmentController {
-  constructor(private readonly equipmentService: EquipmentService) {}
+  constructor(
+    private readonly equipmentService: EquipmentService,
+    private readonly equipmentAssignmentsService: EquipmentAssignmentsService,
+  ) {}
+  @Get('/resources/by-project/:projectId')
+  findResourcesByProject(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Query('tenantId', ParseIntPipe) tenantId: number,
+  ) {
+    return this.equipmentService.findResourcesByProject(projectId, tenantId);
+  }
 
   @Post()
   create(@Body() createEquipmentDto: CreateEquipmentDto) {
     return this.equipmentService.create(createEquipmentDto);
   }
-
+  @Get(':id/assigned-tasks')
+  getAssignedTasksByEmployee(@Param('id', ParseIntPipe) id: number) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.equipmentAssignmentsService.getTasksByEquipmentId(id);
+  }
   @Get()
   findAll() {
     return this.equipmentService.findAll();

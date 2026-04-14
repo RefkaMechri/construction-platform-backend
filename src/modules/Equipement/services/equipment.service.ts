@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
@@ -159,5 +160,43 @@ export class EquipmentService {
     }
 
     throw error;
+  }
+  async findResourcesByProject(projectId: number, tenantId: number) {
+    if (!tenantId) {
+      throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
+    }
+
+    const equipments =
+      await this.equipmentRepository.findAllByTenantWithAssignmentsForProject(
+        tenantId,
+        projectId,
+      );
+
+    return equipments.map((equipment) => {
+      const assignedTasks = equipment.assignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        taskId: assignment.task.id,
+        id: assignment.task.id,
+        name: assignment.task.name,
+        startDate: assignment.startDate,
+        endDate: assignment.endDate,
+      }));
+
+      const allocation = assignedTasks.length > 0 ? 100 : 0;
+
+      const availabilityStatus =
+        assignedTasks.length === 0 ? 'AVAILABLE' : 'IN_USE';
+
+      return {
+        id: equipment.id,
+        name: equipment.name,
+        status: equipment.status,
+        availabilityStatus,
+        allocation,
+        assignedTasks,
+        createdAt: equipment.createdAt,
+        updatedAt: equipment.updatedAt,
+      };
+    });
   }
 }

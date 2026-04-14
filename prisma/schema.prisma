@@ -243,6 +243,7 @@ model Task {
   milestoneId  Int?
   milestone    Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   assignments EmployeeAssignment[]
+  assignmentsEq           EquipmentAssignment []
 
 
   predecessors  TaskDependency[] @relation("DependencySuccessor")
@@ -370,6 +371,7 @@ model Equipment {
   status             String   @default("ACTIVE")
   availabilityStatus String   @default("AVAILABLE")
   condition          String?  // NEW, GOOD, FAIR, DAMAGED
+  assignments         EquipmentAssignment[]
 
   ownershipType      String?  // OWNED, RENTED, LEASED
   purchaseDate       DateTime?
@@ -436,3 +438,23 @@ model EmployeeAssignment {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+model EquipmentAssignment {
+  id           Int        @id @default(autoincrement())
+
+  equipmentId  Int
+  equipment    Equipment  @relation(fields: [equipmentId], references: [id])
+
+  taskId       Int
+  task         Task       @relation(fields: [taskId], references: [id])
+
+  startDate    DateTime
+  endDate      DateTime
+
+  notes        String?
+
+  createdById  Int?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
