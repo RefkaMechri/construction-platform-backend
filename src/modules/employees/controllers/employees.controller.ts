@@ -12,10 +12,22 @@ import {
 import { EmployeesService } from '../services/employees.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
+import { EmployeeAssignmentsService } from '../services/employee-assignments.service';
 
 @Controller('employees')
 export class EmployeesController {
-  constructor(private readonly employeesService: EmployeesService) {}
+  constructor(
+    private readonly employeesService: EmployeesService,
+    private readonly employeeAssignmentsService: EmployeeAssignmentsService,
+  ) {}
+
+  @Get('/resources/by-project/:projectId')
+  findResourcesByProject(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Query('tenantId', ParseIntPipe) tenantId: number,
+  ) {
+    return this.employeesService.findResourcesByProject(projectId, tenantId);
+  }
 
   @Post()
   create(@Body() dto: CreateEmployeeDto) {
@@ -25,6 +37,11 @@ export class EmployeesController {
   @Get()
   findAllByTenant(@Query('tenantId', ParseIntPipe) tenantId: number) {
     return this.employeesService.findAllByTenant(tenantId);
+  }
+
+  @Get(':id/assigned-tasks')
+  getAssignedTasksByEmployee(@Param('id', ParseIntPipe) id: number) {
+    return this.employeeAssignmentsService.getTasksByEmployeeId(id);
   }
 
   @Get(':id')
