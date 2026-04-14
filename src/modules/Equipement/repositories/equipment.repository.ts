@@ -61,4 +61,35 @@ export class EquipmentRepository {
       },
     });
   }
+
+  async findAllByTenantWithAssignmentsForProject(
+    tenantId: number,
+    projectId: number,
+  ) {
+    return this.prisma.equipment.findMany({
+      where: {
+        tenantId,
+      },
+      include: {
+        assignments: {
+          where: {
+            task: {
+              phase: {
+                projectId,
+              },
+            },
+          },
+          include: {
+            task: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }
