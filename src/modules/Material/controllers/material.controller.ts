@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   Body,
   Controller,
@@ -7,20 +8,35 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { MaterialService } from '../services/material.service';
 import { CreateMaterialDto } from '../dto/create-material.dto';
 import { UpdateMaterialDto } from '../dto/update-material.dto';
+import { MaterialAssignmentsService } from '../services/materialassignments.service';
 
 @Controller('materials')
 export class MaterialController {
-  constructor(private readonly materialService: MaterialService) {}
-
+  constructor(
+    private readonly materialService: MaterialService,
+    private readonly materialAssignmentsService: MaterialAssignmentsService,
+  ) {}
+  @Get('/resources/by-project/:projectId')
+  findResourcesByProject(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Query('tenantId', ParseIntPipe) tenantId: number,
+  ) {
+    return this.materialService.findResourcesByProject(projectId, tenantId);
+  }
   @Post()
   create(@Body() createMaterialDto: CreateMaterialDto) {
     return this.materialService.create(createMaterialDto);
   }
-
+  @Get(':id/assigned-tasks')
+  getAssignedTasksByMaterial(@Param('id', ParseIntPipe) id: number) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.materialAssignmentsService.getTasksByMaterialId(id);
+  }
   @Get()
   findAll() {
     return this.materialService.findAll();

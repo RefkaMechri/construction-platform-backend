@@ -237,13 +237,15 @@ model Task {
   phase         Phase           @relation(fields: [phaseId], references: [id], onDelete: Cascade)
 
   parentTaskId  Int?
-  parentTask    Task?           @relation("TaskToSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
-  subtasks      Task[]          @relation("TaskToSubtasks")
+  parentTask              Task?           @relation("TaskToSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks                Task[]          @relation("TaskToSubtasks")
 
-  milestoneId  Int?
-  milestone    Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
-  assignments EmployeeAssignment[]
+  milestoneId             Int?
+  milestone               Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  assignments             EmployeeAssignment[]
   assignmentsEq           EquipmentAssignment []
+  assignmentsMt           MaterialAssignment []
+
 
 
   predecessors  TaskDependency[] @relation("DependencySuccessor")
@@ -400,6 +402,7 @@ model Material {
   brand            String?
 
   quantity         Float    @default(0)
+  reservedQuantity   Float    @default(0) // quantité réservée pour les tâches
   unit             String   // kg, ton, m3, piece, bag...
 
   quality          String?  // HIGH, MEDIUM, LOW
@@ -410,6 +413,7 @@ model Material {
 
   tenantId         Int
   tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  assignments         MaterialAssignment[]
 
   createdById      Int?
   createdBy        User?    @relation("MaterialCreatedBy", fields: [createdById], references: [id])
@@ -458,3 +462,21 @@ model EquipmentAssignment {
   updatedAt    DateTime   @updatedAt
 }
 
+model MaterialAssignment {
+  id          Int       @id @default(autoincrement())
+
+  materialId  Int
+  material    Material  @relation(fields: [materialId], references: [id])
+
+  taskId      Int
+  task        Task      @relation(fields: [taskId], references: [id])
+
+  quantity    Float
+
+  notes       String?
+  startDate   DateTime
+  status      String    @default("RESERVED")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

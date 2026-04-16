@@ -14,9 +14,6 @@ import { EquipmentAssignedTaskResponseDto } from '../dto/equipement-assigned-tas
 
 @Injectable()
 export class EquipmentAssignmentsService {
-  getTasksByEmployeeId(id: number) {
-    throw new Error('Method not implemented.');
-  }
   constructor(
     private readonly equipmentAssignmentsRepository: EquipmentAssignmentsRepository,
     private readonly prisma: PrismaService,

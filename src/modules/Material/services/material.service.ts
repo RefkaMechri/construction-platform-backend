@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CreateMaterialDto } from '../dto/create-material.dto';
@@ -130,5 +131,61 @@ export class MaterialService {
     }
 
     throw error;
+  }
+  async findResourcesByProject(projectId: number, tenantId: number) {
+    if (!tenantId) {
+      throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
+    }
+
+    const materials =
+      await this.materialRepository.findAllByTenantWithAssignmentsForProject(
+        tenantId,
+        projectId,
+      );
+
+    return materials.map((material) => {
+      const assignedTasks = material.assignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        taskId: assignment.task.id,
+        id: assignment.task.id,
+        name: assignment.task.name,
+        quantity: assignment.quantity,
+        startDate: assignment.startDate,
+        status: assignment.status,
+        notes: assignment.notes,
+      }));
+
+      const reservedAssignments = assignedTasks.filter(
+        (task) => task.status === 'RESERVED' || task.status === 'WAITING_STOCK',
+      );
+
+      const reservedQuantity = reservedAssignments.reduce(
+        (sum, task) => sum + task.quantity,
+        0,
+      );
+
+      let availabilityStatus:
+        | 'AVAILABLE'
+        | 'IN_USE'
+        | 'PARTIAL'
+        | 'OUT_OF_STOCK' = 'AVAILABLE';
+
+      if (material.quantity <= 0) {
+        availabilityStatus = 'OUT_OF_STOCK';
+      } else if (reservedQuantity > 0) {
+        availabilityStatus = 'IN_USE';
+      }
+
+      return {
+        id: material.id,
+        name: material.name,
+        status: material.status,
+        availabilityStatus,
+        availableQuantity: material.quantity,
+        assignedTasks,
+        createdAt: material.createdAt,
+        updatedAt: material.updatedAt,
+      };
+    });
   }
 }
