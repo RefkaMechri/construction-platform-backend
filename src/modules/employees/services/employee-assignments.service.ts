@@ -19,17 +19,56 @@ export class EmployeeAssignmentsService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private hasDateOverlap(
+    startA: Date,
+    endA: Date,
+    startB?: Date | null,
+    endB?: Date | null,
+  ): boolean {
+    if (!startB || !endB) return false;
+    return startA <= endB && endA >= startB;
+  }
+
+  private validateEmployeeAvailability(
+    employee: {
+      availabilityStatus?: string | null;
+      unavailableFrom?: Date | null;
+      unavailableTo?: Date | null;
+    },
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const isUnavailableStatus =
+      employee.availabilityStatus &&
+      employee.availabilityStatus !== 'AVAILABLE';
+
+    const overlapsUnavailability = this.hasDateOverlap(
+      startDate,
+      endDate,
+      employee.unavailableFrom,
+      employee.unavailableTo,
+    );
+
+    if (isUnavailableStatus && overlapsUnavailability) {
+      throw new BadRequestException(
+        `L'employé est indisponible du ${employee.unavailableFrom?.toISOString().slice(0, 10)} au ${employee.unavailableTo?.toISOString().slice(0, 10)}.`,
+      );
+    }
+  }
+
   async create(createDto: CreateEmployeeAssignmentDto) {
     const startDate = new Date(createDto.startDate);
     const endDate = new Date(createDto.endDate);
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('Invalid startDate or endDate');
+      throw new BadRequestException(
+        'La date de début ou la date de fin est invalide.',
+      );
     }
 
     if (startDate > endDate) {
       throw new BadRequestException(
-        'startDate must be less than or equal to endDate',
+        'La date de début doit être inférieure ou égale à la date de fin.',
       );
     }
 
@@ -39,9 +78,11 @@ export class EmployeeAssignmentsService {
 
     if (!employee) {
       throw new NotFoundException(
-        `Employee with ID ${createDto.employeeId} not found`,
+        `Employé avec l'identifiant ${createDto.employeeId} introuvable.`,
       );
     }
+
+    this.validateEmployeeAvailability(employee, startDate, endDate);
 
     const task = await this.prisma.task.findUnique({
       where: { id: createDto.taskId },
@@ -60,14 +101,16 @@ export class EmployeeAssignmentsService {
     });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${createDto.taskId} not found`);
+      throw new NotFoundException(
+        `Tâche avec l'identifiant ${createDto.taskId} introuvable.`,
+      );
     }
 
     const taskTenantId = task.phase.project.tenantId;
 
     if (employee.tenantId !== taskTenantId) {
       throw new BadRequestException(
-        'Employee and Task must belong to the same tenant',
+        "L'employé et la tâche doivent appartenir à la même entreprise.",
       );
     }
 
@@ -79,7 +122,7 @@ export class EmployeeAssignmentsService {
 
     if (conflict) {
       throw new BadRequestException(
-        'Employee is already assigned during this period',
+        "L'employé est déjà affecté pendant cette période.",
       );
     }
 
@@ -113,7 +156,9 @@ export class EmployeeAssignmentsService {
     const assignment = await this.employeeAssignmentsRepository.findById(id);
 
     if (!assignment) {
-      throw new NotFoundException(`EmployeeAssignment with ID ${id} not found`);
+      throw new NotFoundException(
+        `Affectation employé avec l'identifiant ${id} introuvable.`,
+      );
     }
 
     return assignment;
@@ -139,9 +184,18 @@ export class EmployeeAssignmentsService {
       ? new Date(updateDto.endDate)
       : current.endDate;
 
+    if (
+      Number.isNaN(nextStartDate.getTime()) ||
+      Number.isNaN(nextEndDate.getTime())
+    ) {
+      throw new BadRequestException(
+        'La date de début ou la date de fin est invalide.',
+      );
+    }
+
     if (nextStartDate > nextEndDate) {
       throw new BadRequestException(
-        'startDate must be less than or equal to endDate',
+        'La date de début doit être inférieure ou égale à la date de fin.',
       );
     }
 
@@ -151,9 +205,11 @@ export class EmployeeAssignmentsService {
 
     if (!employee) {
       throw new NotFoundException(
-        `Employee with ID ${nextEmployeeId} not found`,
+        `Employé avec l'identifiant ${nextEmployeeId} introuvable.`,
       );
     }
+
+    this.validateEmployeeAvailability(employee, nextStartDate, nextEndDate);
 
     const task = await this.prisma.task.findUnique({
       where: { id: nextTaskId },
@@ -172,14 +228,16 @@ export class EmployeeAssignmentsService {
     });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${nextTaskId} not found`);
+      throw new NotFoundException(
+        `Tâche avec l'identifiant ${nextTaskId} introuvable.`,
+      );
     }
 
     const taskTenantId = task.phase.project.tenantId;
 
     if (employee.tenantId !== taskTenantId) {
       throw new BadRequestException(
-        'Employee and Task must belong to the same tenant',
+        "L'employé et la tâche doivent appartenir à la même entreprise.",
       );
     }
 
@@ -192,7 +250,7 @@ export class EmployeeAssignmentsService {
 
     if (conflict) {
       throw new BadRequestException(
-        'Employee is already assigned during this period',
+        "L'employé est déjà affecté pendant cette période.",
       );
     }
 
@@ -240,6 +298,7 @@ export class EmployeeAssignmentsService {
     await this.findOne(id);
     return this.employeeAssignmentsRepository.delete(id);
   }
+
   async getTasksByEmployeeId(
     employeeId: number,
   ): Promise<EmployeeAssignedTaskResponseDto[]> {

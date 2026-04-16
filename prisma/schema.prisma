@@ -336,7 +336,9 @@ model Employee {
   skills       String[]
 
   availabilityStatus String @default("AVAILABLE")
-
+  unavailableFrom    DateTime?
+  unavailableTo      DateTime?
+  unavailabilityNote String?
   status       String   @default("ACTIVE")
   assignments EmployeeAssignment[]
 
@@ -349,6 +351,26 @@ model Employee {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model EmployeeAssignment {
+  id          Int       @id @default(autoincrement())
+
+  employeeId  Int
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+
+  taskId      Int
+  task        Task      @relation(fields: [taskId], references: [id])
+
+  startDate   DateTime
+  endDate     DateTime
+
+  notes       String?
+
+  createdById Int?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 //************************************************************/
 //*                    Equipement                            */
@@ -372,6 +394,9 @@ model Equipment {
 
   status             String   @default("ACTIVE")
   availabilityStatus String   @default("AVAILABLE")
+  unavailableFrom    DateTime?
+  unavailableTo      DateTime?
+  unavailabilityNote String?
   condition          String?  // NEW, GOOD, FAIR, DAMAGED
   assignments         EquipmentAssignment[]
 
@@ -388,6 +413,25 @@ model Equipment {
   updatedAt          DateTime @updatedAt
 }
 
+model EquipmentAssignment {
+  id           Int        @id @default(autoincrement())
+
+  equipmentId  Int
+  equipment    Equipment  @relation(fields: [equipmentId], references: [id])
+
+  taskId       Int
+  task         Task       @relation(fields: [taskId], references: [id])
+
+  startDate    DateTime
+  endDate      DateTime
+
+  notes        String?
+
+  createdById  Int?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
 //************************************************************/
 //*                    Material                             */
 //************************************************************/
@@ -421,47 +465,6 @@ model Material {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
-
-
-model EmployeeAssignment {
-  id          Int       @id @default(autoincrement())
-
-  employeeId  Int
-  employee    Employee  @relation(fields: [employeeId], references: [id])
-
-  taskId      Int
-  task        Task      @relation(fields: [taskId], references: [id])
-
-  startDate   DateTime
-  endDate     DateTime
-
-  notes       String?
-
-  createdById Int?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-model EquipmentAssignment {
-  id           Int        @id @default(autoincrement())
-
-  equipmentId  Int
-  equipment    Equipment  @relation(fields: [equipmentId], references: [id])
-
-  taskId       Int
-  task         Task       @relation(fields: [taskId], references: [id])
-
-  startDate    DateTime
-  endDate      DateTime
-
-  notes        String?
-
-  createdById  Int?
-
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
-
 model MaterialAssignment {
   id          Int       @id @default(autoincrement())
 

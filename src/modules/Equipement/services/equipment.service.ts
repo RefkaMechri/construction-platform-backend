@@ -15,6 +15,17 @@ export class EquipmentService {
 
   async create(createEquipmentDto: CreateEquipmentDto) {
     try {
+      if (
+        createEquipmentDto.unavailableFrom &&
+        createEquipmentDto.unavailableTo &&
+        new Date(createEquipmentDto.unavailableFrom) >
+          new Date(createEquipmentDto.unavailableTo)
+      ) {
+        throw new BadRequestException(
+          "La date de début d'indisponibilité doit être antérieure à la date de fin.",
+        );
+      }
+
       const data: Prisma.EquipmentCreateInput = {
         name: createEquipmentDto.name,
         code: createEquipmentDto.code,
@@ -30,16 +41,28 @@ export class EquipmentService {
         status: createEquipmentDto.status ?? 'ACTIVE',
         availabilityStatus:
           createEquipmentDto.availabilityStatus ?? 'AVAILABLE',
+
+        unavailableFrom: createEquipmentDto.unavailableFrom
+          ? new Date(createEquipmentDto.unavailableFrom)
+          : undefined,
+        unavailableTo: createEquipmentDto.unavailableTo
+          ? new Date(createEquipmentDto.unavailableTo)
+          : undefined,
+        unavailabilityNote:
+          createEquipmentDto.unavailabilityNote?.trim() || undefined,
+
         condition: createEquipmentDto.condition,
         ownershipType: createEquipmentDto.ownershipType,
         purchaseDate: createEquipmentDto.purchaseDate
           ? new Date(createEquipmentDto.purchaseDate)
           : undefined,
+
         tenant: {
           connect: {
             id: createEquipmentDto.tenantId,
           },
         },
+
         ...(createEquipmentDto.createdById && {
           createdBy: {
             connect: {
@@ -73,39 +96,50 @@ export class EquipmentService {
     await this.findOne(id);
 
     try {
+      if (
+        updateEquipmentDto.unavailableFrom &&
+        updateEquipmentDto.unavailableTo &&
+        new Date(updateEquipmentDto.unavailableFrom) >
+          new Date(updateEquipmentDto.unavailableTo)
+      ) {
+        throw new BadRequestException(
+          "La date de début d'indisponibilité doit être antérieure à la date de fin.",
+        );
+      }
+
       const data: Prisma.EquipmentUpdateInput = {
         ...(updateEquipmentDto.name !== undefined && {
           name: updateEquipmentDto.name,
         }),
         ...(updateEquipmentDto.code !== undefined && {
-          code: updateEquipmentDto.code,
+          code: updateEquipmentDto.code || null,
         }),
         ...(updateEquipmentDto.description !== undefined && {
-          description: updateEquipmentDto.description,
+          description: updateEquipmentDto.description || null,
         }),
         ...(updateEquipmentDto.category !== undefined && {
           category: updateEquipmentDto.category,
         }),
         ...(updateEquipmentDto.brand !== undefined && {
-          brand: updateEquipmentDto.brand,
+          brand: updateEquipmentDto.brand || null,
         }),
         ...(updateEquipmentDto.model !== undefined && {
-          model: updateEquipmentDto.model,
+          model: updateEquipmentDto.model || null,
         }),
         ...(updateEquipmentDto.serialNumber !== undefined && {
-          serialNumber: updateEquipmentDto.serialNumber,
+          serialNumber: updateEquipmentDto.serialNumber || null,
         }),
         ...(updateEquipmentDto.yearOfManufacture !== undefined && {
-          yearOfManufacture: updateEquipmentDto.yearOfManufacture,
+          yearOfManufacture: updateEquipmentDto.yearOfManufacture ?? null,
         }),
         ...(updateEquipmentDto.quantity !== undefined && {
           quantity: updateEquipmentDto.quantity,
         }),
         ...(updateEquipmentDto.unit !== undefined && {
-          unit: updateEquipmentDto.unit,
+          unit: updateEquipmentDto.unit || null,
         }),
         ...(updateEquipmentDto.capacity !== undefined && {
-          capacity: updateEquipmentDto.capacity,
+          capacity: updateEquipmentDto.capacity || null,
         }),
         ...(updateEquipmentDto.status !== undefined && {
           status: updateEquipmentDto.status,
@@ -113,11 +147,27 @@ export class EquipmentService {
         ...(updateEquipmentDto.availabilityStatus !== undefined && {
           availabilityStatus: updateEquipmentDto.availabilityStatus,
         }),
+
+        ...(updateEquipmentDto.unavailableFrom !== undefined && {
+          unavailableFrom: updateEquipmentDto.unavailableFrom
+            ? new Date(updateEquipmentDto.unavailableFrom)
+            : null,
+        }),
+        ...(updateEquipmentDto.unavailableTo !== undefined && {
+          unavailableTo: updateEquipmentDto.unavailableTo
+            ? new Date(updateEquipmentDto.unavailableTo)
+            : null,
+        }),
+        ...(updateEquipmentDto.unavailabilityNote !== undefined && {
+          unavailabilityNote:
+            updateEquipmentDto.unavailabilityNote?.trim() || null,
+        }),
+
         ...(updateEquipmentDto.condition !== undefined && {
-          condition: updateEquipmentDto.condition,
+          condition: updateEquipmentDto.condition || null,
         }),
         ...(updateEquipmentDto.ownershipType !== undefined && {
-          ownershipType: updateEquipmentDto.ownershipType,
+          ownershipType: updateEquipmentDto.ownershipType || null,
         }),
         ...(updateEquipmentDto.purchaseDate !== undefined && {
           purchaseDate: updateEquipmentDto.purchaseDate
@@ -147,7 +197,6 @@ export class EquipmentService {
       this.handlePrismaError(error);
     }
   }
-
   async remove(id: number) {
     await this.findOne(id);
     return this.equipmentRepository.delete(id);
