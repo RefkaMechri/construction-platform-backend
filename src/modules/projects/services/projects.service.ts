@@ -46,6 +46,8 @@ export class ProjectsService {
       address: createProjectDto.address,
       startDate,
       endDate,
+      baselineStartDate: startDate,
+      baselineEndDate: endDate,
       budget: createProjectDto.budget,
       type: createProjectDto.type,
       description: createProjectDto.description,

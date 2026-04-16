@@ -116,6 +116,8 @@ export class PhasesService {
       description: createPhaseDto.description,
       startDate,
       endDate,
+      baselineStartDate: startDate,
+      baselineEndDate: endDate,
       status: createPhaseDto.status ?? PhaseStatus.NOT_STARTED,
       order: createPhaseDto.order,
       project: {

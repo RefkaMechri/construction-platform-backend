@@ -12,7 +12,7 @@ import { PhaseStatus } from '@prisma/client';
 export class CreatePhaseDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -32,7 +32,7 @@ export class CreatePhaseDto {
 
   @IsInt()
   @Min(1)
-  projectId: number;
+  projectId!: number;
 
   @IsOptional()
   @IsInt()

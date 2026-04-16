@@ -11,6 +11,7 @@ import { UpdateTaskDto } from '../dto/update-task.dto';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { PhasesService } from './phases.service';
 import { MilestonesService } from './milestones.service';
+import { TaskSchedulingService } from './task-scheduling.service';
 
 type CurrentUser = {
   id: number;
@@ -25,6 +26,7 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly phasesService: PhasesService,
     private readonly milestonesService: MilestonesService,
+    private readonly taskSchedulingService: TaskSchedulingService,
   ) {}
 
   private async getPhaseOrThrow(phaseId: number, tenantId: number) {
@@ -56,9 +58,11 @@ export class TasksService {
     if (!subtasks.length) {
       return;
     }
+
     const allDone = subtasks.every(
       (subtask) => subtask.status === TaskStatus.DONE,
     );
+
     await this.prisma.task.update({
       where: { id: parentTaskId },
       data: {
@@ -67,25 +71,36 @@ export class TasksService {
     });
   }
 
+  private hasDateChanged(oldDate: Date | null, newDate: Date | null): boolean {
+    if (!oldDate && !newDate) return false;
+    if (!oldDate || !newDate) return true;
+    return oldDate.getTime() !== newDate.getTime();
+  }
+
   async create(createTaskDto: CreateTaskDto, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
     }
+
     const phase = await this.getPhaseOrThrow(
       createTaskDto.phaseId,
       user.tenantId,
     );
+
     const startDate = createTaskDto.startDate
       ? new Date(createTaskDto.startDate)
       : undefined;
+
     const endDate = createTaskDto.endDate
       ? new Date(createTaskDto.endDate)
       : undefined;
+
     if (startDate && endDate && endDate < startDate) {
       throw new BadRequestException(
         'La date de fin doit être supérieure ou égale à la date de début.',
       );
     }
+
     const parentTask = createTaskDto.parentTaskId
       ? await this.prisma.task.findFirst({
           where: {
@@ -102,21 +117,26 @@ export class TasksService {
     if (createTaskDto.parentTaskId && !parentTask) {
       throw new NotFoundException('Tâche parent introuvable.');
     }
+
     if (parentTask && parentTask.phaseId !== createTaskDto.phaseId) {
       throw new BadRequestException(
         'La sous-tâche doit appartenir à la même phase que la tâche parent.',
       );
     }
+
     if (parentTask && parentTask.parentTaskId) {
       throw new BadRequestException(
         "Impossible d'ajouter une sous-tâche à une sous-tâche.",
       );
     }
+
     const createdTask = await this.tasksRepository.create({
       name: createTaskDto.name,
       description: createTaskDto.description,
       startDate,
       endDate,
+      baselineStartDate: startDate,
+      baselineEndDate: endDate,
       status: createTaskDto.status ?? TaskStatus.TODO,
       priority: createTaskDto.priority ?? TaskPriority.MEDIUM,
       order: createTaskDto.order,
@@ -131,10 +151,19 @@ export class TasksService {
           }
         : {}),
     });
+
     if (createdTask.parentTaskId) {
       await this.syncParentTaskStatus(createdTask.parentTaskId);
     }
+
     await this.phasesService.syncPhaseStatusFromTasks(createdTask.phaseId);
+    await this.taskSchedulingService.refreshPhaseDatesFromTasks(
+      createdTask.phaseId,
+    );
+    await this.taskSchedulingService.refreshProjectDatesFromPhases(
+      phase.projectId,
+    );
+
     return createdTask;
   }
 
@@ -142,6 +171,7 @@ export class TasksService {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
     }
+
     await this.getPhaseOrThrow(phaseId, user.tenantId);
     return this.tasksRepository.findByPhase(phaseId);
   }
@@ -150,6 +180,7 @@ export class TasksService {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
     }
+
     const task = await this.prisma.task.findFirst({
       where: {
         id,
@@ -160,12 +191,18 @@ export class TasksService {
         },
       },
       include: {
-        phase: true,
+        phase: {
+          include: {
+            project: true,
+          },
+        },
       },
     });
+
     if (!task) {
       throw new NotFoundException('Tâche introuvable.');
     }
+
     return task;
   }
 
@@ -174,6 +211,8 @@ export class TasksService {
 
     const oldParentTaskId = task.parentTaskId ?? null;
     const oldPhaseId = task.phaseId;
+    const oldProjectId = task.phase.projectId;
+    const oldMilestoneId = task.milestoneId ?? null;
 
     const data: any = {};
 
@@ -216,10 +255,11 @@ export class TasksService {
         : null;
     }
 
+    const finalStart =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.startDate !== undefined ? data.startDate : task.startDate;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const finalStart = data.startDate ?? task.startDate;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const finalEnd = data.endDate ?? task.endDate;
+    const finalEnd = data.endDate !== undefined ? data.endDate : task.endDate;
 
     if (finalStart && finalEnd && finalEnd < finalStart) {
       throw new BadRequestException(
@@ -272,36 +312,54 @@ export class TasksService {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    if (updateTaskDto.milestoneId !== undefined) {
+      if (updateTaskDto.milestoneId === null) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        data.milestone = { disconnect: true };
+      } else {
+        const milestone = await this.prisma.milestone.findFirst({
+          where: {
+            id: updateTaskDto.milestoneId,
+            project: {
+              tenantId: user.tenantId as number,
+            },
+          },
+        });
+
+        if (!milestone) {
+          throw new NotFoundException('Jalon introuvable.');
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        data.milestone = {
+          connect: { id: updateTaskDto.milestoneId },
+        };
+      }
+    }
+
     const startDateChanged =
       updateTaskDto.startDate !== undefined &&
-      ((task.startDate &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        data.startDate &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        task.startDate.getTime() !== data.startDate.getTime()) ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (!task.startDate && data.startDate) ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (task.startDate && !data.startDate));
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      this.hasDateChanged(task.startDate, data.startDate ?? null);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const endDateChanged =
       updateTaskDto.endDate !== undefined &&
-      ((task.endDate &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        data.endDate &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        task.endDate.getTime() !== data.endDate.getTime()) ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (!task.endDate && data.endDate) ||
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (task.endDate && !data.endDate));
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      this.hasDateChanged(task.endDate, data.endDate ?? null);
+
+    const datesChanged = startDateChanged || endDateChanged;
 
     const updatedTask = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.task.update({
         where: { id: task.id },
         data,
+        include: {
+          phase: {
+            include: {
+              project: true,
+            },
+          },
+        },
       });
 
       if (startDateChanged && updated.startDate) {
@@ -346,6 +404,15 @@ export class TasksService {
       return updated;
     });
 
+    if (datesChanged) {
+      await this.taskSchedulingService.rescheduleFromTask(updatedTask.id);
+    } else {
+      await this.taskSchedulingService.refreshPhaseDatesFromTasks(oldPhaseId);
+      await this.taskSchedulingService.refreshProjectDatesFromPhases(
+        oldProjectId,
+      );
+    }
+
     if (oldParentTaskId) {
       await this.syncParentTaskStatus(oldParentTaskId);
     }
@@ -368,30 +435,36 @@ export class TasksService {
 
     if (updatedTask.phaseId !== oldPhaseId) {
       await this.phasesService.syncPhaseStatusFromTasks(updatedTask.phaseId);
-    }
-
-    if (task.milestoneId) {
-      await this.milestonesService.refreshMilestoneStatusFromTasks(
-        task.milestoneId,
+      await this.taskSchedulingService.refreshPhaseDatesFromTasks(
+        updatedTask.phaseId,
+      );
+      await this.taskSchedulingService.refreshProjectDatesFromPhases(
+        updatedTask.phase.projectId,
       );
     }
 
-    if (
-      updatedTask.milestoneId &&
-      updatedTask.milestoneId !== task.milestoneId
-    ) {
+    if (oldMilestoneId) {
+      await this.milestonesService.refreshMilestoneStatusFromTasks(
+        oldMilestoneId,
+      );
+    }
+
+    if (updatedTask.milestoneId && updatedTask.milestoneId !== oldMilestoneId) {
       await this.milestonesService.refreshMilestoneStatusFromTasks(
         updatedTask.milestoneId,
       );
     }
 
-    return updatedTask;
+    return this.findOne(updatedTask.id, user);
   }
 
   async remove(id: number, user: CurrentUser) {
     const task = await this.findOne(id, user);
+
     const parentTaskId = task.parentTaskId ?? null;
     const phaseId = task.phaseId;
+    const projectId = task.phase.projectId;
+    const milestoneId = task.milestoneId ?? null;
 
     const deletedTask = await this.tasksRepository.delete(task.id);
 
@@ -400,9 +473,16 @@ export class TasksService {
     }
 
     await this.phasesService.syncPhaseStatusFromTasks(phaseId);
+    await this.taskSchedulingService.refreshPhaseDatesFromTasks(phaseId);
+    await this.taskSchedulingService.refreshProjectDatesFromPhases(projectId);
+
+    if (milestoneId) {
+      await this.milestonesService.refreshMilestoneStatusFromTasks(milestoneId);
+    }
 
     return deletedTask;
   }
+
   async findByProject(projectId: number, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
