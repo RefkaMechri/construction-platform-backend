@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -215,9 +216,9 @@ export class TasksService {
         : null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const finalStart = data.startDate ?? task.startDate;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const finalEnd = data.endDate ?? task.endDate;
 
     if (finalStart && finalEnd && finalEnd < finalStart) {
@@ -271,7 +272,79 @@ export class TasksService {
       }
     }
 
-    const updatedTask = await this.tasksRepository.update(task.id, data);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const startDateChanged =
+      updateTaskDto.startDate !== undefined &&
+      ((task.startDate &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        data.startDate &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        task.startDate.getTime() !== data.startDate.getTime()) ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (!task.startDate && data.startDate) ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (task.startDate && !data.startDate));
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const endDateChanged =
+      updateTaskDto.endDate !== undefined &&
+      ((task.endDate &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        data.endDate &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        task.endDate.getTime() !== data.endDate.getTime()) ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (!task.endDate && data.endDate) ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (task.endDate && !data.endDate));
+
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.task.update({
+        where: { id: task.id },
+        data,
+      });
+
+      if (startDateChanged && updated.startDate) {
+        await tx.materialAssignment.updateMany({
+          where: { taskId: task.id },
+          data: {
+            startDate: updated.startDate,
+          },
+        });
+
+        await tx.employeeAssignment.updateMany({
+          where: { taskId: task.id },
+          data: {
+            startDate: updated.startDate,
+          },
+        });
+
+        await tx.equipmentAssignment.updateMany({
+          where: { taskId: task.id },
+          data: {
+            startDate: updated.startDate,
+          },
+        });
+      }
+
+      if (endDateChanged && updated.endDate) {
+        await tx.employeeAssignment.updateMany({
+          where: { taskId: task.id },
+          data: {
+            endDate: updated.endDate,
+          },
+        });
+
+        await tx.equipmentAssignment.updateMany({
+          where: { taskId: task.id },
+          data: {
+            endDate: updated.endDate,
+          },
+        });
+      }
+
+      return updated;
+    });
 
     if (oldParentTaskId) {
       await this.syncParentTaskStatus(oldParentTaskId);
@@ -296,6 +369,7 @@ export class TasksService {
     if (updatedTask.phaseId !== oldPhaseId) {
       await this.phasesService.syncPhaseStatusFromTasks(updatedTask.phaseId);
     }
+
     if (task.milestoneId) {
       await this.milestonesService.refreshMilestoneStatusFromTasks(
         task.milestoneId,

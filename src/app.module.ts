@@ -29,6 +29,7 @@ import { EquipmentModule } from './modules/Equipement/equipment.module';
 import { MaterialModule } from './modules/Material/material.module';
 import { EmployeeAssignmentsModule } from './modules/employees/employee-assignments.module';
 import { EquipmentAssignmentsModule } from './modules/Equipement/equipment-assignments.module';
+import { MaterialAssignmentsModule } from './modules/Material/material-assignments.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -56,6 +57,7 @@ import { EquipmentAssignmentsModule } from './modules/Equipement/equipment-assig
     MaterialModule,
     EmployeeAssignmentsModule,
     EquipmentAssignmentsModule,
+    MaterialAssignmentsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -33,7 +33,7 @@ export class EquipmentController {
     return this.equipmentService.create(createEquipmentDto);
   }
   @Get(':id/assigned-tasks')
-  getAssignedTasksByEmployee(@Param('id', ParseIntPipe) id: number) {
+  getAssignedTasksByEquipment(@Param('id', ParseIntPipe) id: number) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.equipmentAssignmentsService.getTasksByEquipmentId(id);
   }
