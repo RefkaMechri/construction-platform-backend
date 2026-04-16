@@ -146,6 +146,8 @@ model Project {
   address          String
   startDate        DateTime
   endDate          DateTime
+  baselineStartDate DateTime?
+  baselineEndDate   DateTime?
   budget           Decimal       @db.Decimal(15, 2)
   description      String?
   status           ProjectStatus @default(BROUILLON)
@@ -188,6 +190,8 @@ model Phase {
   description String?
   startDate   DateTime?
   endDate     DateTime?
+  baselineStartDate DateTime?
+  baselineEndDate   DateTime?
   status      PhaseStatus @default(NOT_STARTED)
   order       Int?
 
@@ -229,6 +233,8 @@ model Task {
   description   String?
   startDate     DateTime?
   endDate       DateTime?
+  baselineStartDate DateTime?
+  baselineEndDate   DateTime?
   status        TaskStatus      @default(TODO)
   priority      TaskPriority    @default(MEDIUM)
   order         Int?

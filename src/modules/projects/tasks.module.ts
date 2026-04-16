@@ -7,6 +7,7 @@ import { PhasesModule } from './phases.module';
 import { TasksSchedulerService } from './services/tasks-scheduler.service';
 import { ProjectsModule } from './projects.module';
 import { MilestonesModule } from './milestones.module';
+import { TaskSchedulingService } from './services/task-scheduling.service';
 
 @Module({
   imports: [PhasesModule, ProjectsModule, MilestonesModule],
@@ -16,7 +17,8 @@ import { MilestonesModule } from './milestones.module';
     TasksRepository,
     TasksSchedulerService,
     PrismaService,
+    TaskSchedulingService,
   ],
-  exports: [TasksService],
+  exports: [TasksService, TaskSchedulingService],
 })
 export class TasksModule {}
