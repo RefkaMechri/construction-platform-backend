@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
@@ -17,6 +17,11 @@ export class EmployeesRepository {
         skills: dto.skills || [],
         status: dto.status || 'ACTIVE',
         availabilityStatus: dto.availabilityStatus || 'AVAILABLE',
+        unavailableFrom: dto.unavailableFrom
+          ? new Date(dto.unavailableFrom)
+          : null,
+        unavailableTo: dto.unavailableTo ? new Date(dto.unavailableTo) : null,
+        unavailabilityNote: dto.unavailabilityNote?.trim() || null,
         tenantId: dto.tenantId,
         createdById: dto.createdById || null,
       },
@@ -37,6 +42,16 @@ export class EmployeesRepository {
   }
 
   async update(id: number, dto: UpdateEmployeeDto) {
+    if (
+      dto.unavailableFrom &&
+      dto.unavailableTo &&
+      new Date(dto.unavailableFrom) > new Date(dto.unavailableTo)
+    ) {
+      throw new BadRequestException(
+        "La date de début d'indisponibilité doit être antérieure à la date de fin.",
+      );
+    }
+
     return this.prisma.employee.update({
       where: { id },
       data: {
@@ -50,6 +65,17 @@ export class EmployeesRepository {
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.availabilityStatus !== undefined && {
           availabilityStatus: dto.availabilityStatus,
+        }),
+        ...(dto.unavailableFrom !== undefined && {
+          unavailableFrom: dto.unavailableFrom
+            ? new Date(dto.unavailableFrom)
+            : null,
+        }),
+        ...(dto.unavailableTo !== undefined && {
+          unavailableTo: dto.unavailableTo ? new Date(dto.unavailableTo) : null,
+        }),
+        ...(dto.unavailabilityNote !== undefined && {
+          unavailabilityNote: dto.unavailabilityNote?.trim() || null,
         }),
       },
     });

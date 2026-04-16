@@ -66,6 +66,18 @@ export class CreateEquipmentDto {
   availabilityStatus?: EquipmentAvailabilityStatus;
 
   @IsOptional()
+  @IsDateString()
+  unavailableFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  unavailableTo?: string;
+
+  @IsOptional()
+  @IsString()
+  unavailabilityNote?: string;
+
+  @IsOptional()
   @IsEnum(EquipmentCondition)
   condition?: EquipmentCondition;
 

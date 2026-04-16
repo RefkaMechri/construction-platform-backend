@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsArray,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EmployeeStatus, AvailabilityStatus } from '../types/employee.types';
@@ -47,6 +48,18 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsEnum(AvailabilityStatus)
   availabilityStatus?: AvailabilityStatus;
+
+  @IsOptional()
+  @IsDateString()
+  unavailableFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  unavailableTo?: string;
+
+  @IsOptional()
+  @IsString()
+  unavailabilityNote?: string;
 
   @Type(() => Number)
   @IsInt()

@@ -19,6 +19,43 @@ export class EquipmentAssignmentsService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private hasDateOverlap(
+    startA: Date,
+    endA: Date,
+    startB?: Date | null,
+    endB?: Date | null,
+  ): boolean {
+    if (!startB || !endB) return false;
+    return startA <= endB && endA >= startB;
+  }
+
+  private validateEquipmentAvailability(
+    equipment: {
+      availabilityStatus?: string | null;
+      unavailableFrom?: Date | null;
+      unavailableTo?: Date | null;
+    },
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const isUnavailableStatus =
+      equipment.availabilityStatus &&
+      equipment.availabilityStatus !== 'AVAILABLE';
+
+    const overlapsUnavailability = this.hasDateOverlap(
+      startDate,
+      endDate,
+      equipment.unavailableFrom,
+      equipment.unavailableTo,
+    );
+
+    if (isUnavailableStatus && overlapsUnavailability) {
+      throw new BadRequestException(
+        `L'équipement est indisponible du ${equipment.unavailableFrom?.toISOString().slice(0, 10)} au ${equipment.unavailableTo?.toISOString().slice(0, 10)}.`,
+      );
+    }
+  }
+
   async create(createDto: CreateEquipementAssignmentDto) {
     const startDate = new Date(createDto.startDate);
     const endDate = new Date(createDto.endDate);
@@ -42,6 +79,8 @@ export class EquipmentAssignmentsService {
         `Equipment with ID ${createDto.equipmentId} not found`,
       );
     }
+
+    this.validateEquipmentAvailability(equipment, startDate, endDate);
 
     const task = await this.prisma.task.findUnique({
       where: { id: createDto.taskId },
@@ -163,6 +202,8 @@ export class EquipmentAssignmentsService {
         `Equipment with ID ${nextEquipmentId} not found`,
       );
     }
+
+    this.validateEquipmentAvailability(equipment, nextStartDate, nextEndDate);
 
     const task = await this.prisma.task.findUnique({
       where: { id: nextTaskId },
