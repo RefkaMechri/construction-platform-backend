@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { EquipmentRepository } from '../repositories/equipment.repository';
+import { UpdateEquipmentDailyCostDto } from '../dto/update-equipment-daily-cost.dto';
 
 @Injectable()
 export class EquipmentService {
@@ -247,5 +248,14 @@ export class EquipmentService {
         updatedAt: equipment.updatedAt,
       };
     });
+  }
+  async updateDailyCost(id: number, dto: UpdateEquipmentDailyCostDto) {
+    const equipment = await this.equipmentRepository.findOne(id);
+
+    if (!equipment) {
+      throw new NotFoundException('Équipement introuvable');
+    }
+
+    return this.equipmentRepository.updateDailyCost(id, dto.dailyCost);
   }
 }

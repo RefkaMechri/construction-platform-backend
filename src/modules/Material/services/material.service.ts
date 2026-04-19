@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { CreateMaterialDto } from '../dto/create-material.dto';
 import { UpdateMaterialDto } from '../dto/update-material.dto';
 import { MaterialRepository } from '../repositories/material.repository';
+import { UpdateMaterialUnitPriceDto } from '../dto/update-material-unit-price.dto';
 
 @Injectable()
 export class MaterialService {
@@ -187,5 +188,14 @@ export class MaterialService {
         updatedAt: material.updatedAt,
       };
     });
+  }
+  async updateUnitPrice(id: number, dto: UpdateMaterialUnitPriceDto) {
+    const material = await this.materialRepository.findById(id);
+
+    if (!material) {
+      throw new NotFoundException('Matériau introuvable');
+    }
+
+    return this.materialRepository.updateUnitPrice(id, dto.unitPrice);
   }
 }
