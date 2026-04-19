@@ -13,6 +13,7 @@ import { EmployeesService } from '../services/employees.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import { EmployeeAssignmentsService } from '../services/employee-assignments.service';
+import { UpdateEmployeeDailyCostDto } from '../dto/update-employee-daily-cost.dto';
 
 @Controller('employees')
 export class EmployeesController {
@@ -60,5 +61,12 @@ export class EmployeesController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.employeesService.remove(id);
+  }
+  @Patch(':id/daily-cost')
+  updateDailyCost(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateEmployeeDailyCostDto,
+  ) {
+    return this.employeesService.updateDailyCost(id, dto);
   }
 }

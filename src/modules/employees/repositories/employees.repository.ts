@@ -131,4 +131,18 @@ export class EmployeesRepository {
       },
     });
   }
+  async findById(id: number) {
+    return this.prisma.employee.findUnique({
+      where: { id },
+    });
+  }
+
+  async updateDailyCost(id: number, dailyCost: number) {
+    return this.prisma.employee.update({
+      where: { id },
+      data: {
+        dailyCost,
+      },
+    });
+  }
 }

@@ -13,6 +13,7 @@ import { EquipmentService } from '../services/equipment.service';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { EquipmentAssignmentsService } from '../services/equipmentassignments.service';
+import { UpdateEquipmentDailyCostDto } from '../dto/update-equipment-daily-cost.dto';
 
 @Controller('equipments')
 export class EquipmentController {
@@ -58,5 +59,12 @@ export class EquipmentController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.equipmentService.remove(id);
+  }
+  @Patch(':id/daily-cost')
+  updateDailyCost(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateEquipmentDailyCostDto,
+  ) {
+    return this.equipmentService.updateDailyCost(id, dto);
   }
 }

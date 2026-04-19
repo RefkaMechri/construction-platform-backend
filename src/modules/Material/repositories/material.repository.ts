@@ -91,4 +91,13 @@ export class MaterialRepository {
       },
     });
   }
+
+  async updateUnitPrice(id: number, unitPrice: number) {
+    return this.prisma.material.update({
+      where: { id },
+      data: {
+        unitPrice,
+      },
+    });
+  }
 }

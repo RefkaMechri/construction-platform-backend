@@ -9,6 +9,7 @@ import { EmployeesRepository } from '../repositories/employees.repository';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import { PrismaService } from 'prisma/prisma.service';
+import { UpdateEmployeeDailyCostDto } from '../dto/update-employee-daily-cost.dto';
 
 @Injectable()
 export class EmployeesService {
@@ -102,5 +103,14 @@ export class EmployeesService {
         updatedAt: employee.updatedAt,
       };
     });
+  }
+  async updateDailyCost(id: number, dto: UpdateEmployeeDailyCostDto) {
+    const employee = await this.employeesRepository.findById(id);
+
+    if (!employee) {
+      throw new NotFoundException('Employé introuvable');
+    }
+
+    return this.employeesRepository.updateDailyCost(id, dto.dailyCost);
   }
 }

@@ -99,9 +99,9 @@ export class UsersService {
 
         // 3) Vérifier si le rôle demandé est autorisé par les modules du tenant
         const moduleRoleMap: Record<string, string[]> = {
-          Planning: ['PROJECT_MANAGER', 'CONDUCTEUR_DE_TRAVAUX', 'DIRECTEUR'],
+          Planning: ['PROJECT_MANAGER', 'CONDUCTEUR_DE_TRAVAUX'],
           Ressources: ['RESOURCE_MANAGER'],
-          Budget: ['BUDGET_MANAGER'],
+          Coût: ['FINANCIAL_MANAGER'],
         };
 
         const allowedRoles = Array.from(

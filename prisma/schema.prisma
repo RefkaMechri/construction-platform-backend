@@ -37,11 +37,10 @@ model User {
 enum Role {
   SUPER_ADMIN
   ADMIN
-  DIRECTEUR
   PROJECT_MANAGER
   CONDUCTEUR_DE_TRAVAUX
   RESOURCE_MANAGER
-  BUDGET_MANAGER
+  FINANCIAL_MANAGER 
 }
 
 //************************************************************/
@@ -347,6 +346,8 @@ model Employee {
   unavailabilityNote String?
   status       String   @default("ACTIVE")
   assignments EmployeeAssignment[]
+  dailyCost    Float?
+  costUpdatedAt DateTime?
 
 
   tenantId     Int
@@ -398,6 +399,8 @@ model Equipment {
   unit               String?  // piece, unit, ton...
   capacity           String?  // 5 tons, 1000kg...
 
+  dailyCost          Float?
+  costUpdatedAt      DateTime?
   status             String   @default("ACTIVE")
   availabilityStatus String   @default("AVAILABLE")
   unavailableFrom    DateTime?
@@ -458,6 +461,9 @@ model Material {
   quality          String?  // HIGH, MEDIUM, LOW
   status           String   @default("ASSIGNED") // ASSIGNED, USED, CANCELLED
   availabilityStatus String   @default("AVAILABLE")
+  // ----------- prix -----------
+  unitPrice          Float?
+  priceUpdatedAt     DateTime?
 
   notes            String?
 

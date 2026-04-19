@@ -14,6 +14,7 @@ import { MaterialService } from '../services/material.service';
 import { CreateMaterialDto } from '../dto/create-material.dto';
 import { UpdateMaterialDto } from '../dto/update-material.dto';
 import { MaterialAssignmentsService } from '../services/materialassignments.service';
+import { UpdateMaterialUnitPriceDto } from '../dto/update-material-unit-price.dto';
 
 @Controller('materials')
 export class MaterialController {
@@ -58,5 +59,12 @@ export class MaterialController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.materialService.remove(id);
+  }
+  @Patch(':id/unit-price')
+  updateUnitPrice(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMaterialUnitPriceDto,
+  ) {
+    return this.materialService.updateUnitPrice(id, dto);
   }
 }

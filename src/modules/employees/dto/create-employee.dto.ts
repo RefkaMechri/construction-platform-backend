@@ -7,6 +7,8 @@ import {
   IsString,
   IsArray,
   IsDateString,
+  IsPositive,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EmployeeStatus, AvailabilityStatus } from '../types/employee.types';
@@ -69,4 +71,8 @@ export class CreateEmployeeDto {
   @Type(() => Number)
   @IsInt()
   createdById?: number;
+
+  @IsNumber()
+  @IsPositive()
+  dailyCost!: number;
 }

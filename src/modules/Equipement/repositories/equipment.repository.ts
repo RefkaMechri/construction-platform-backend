@@ -92,4 +92,18 @@ export class EquipmentRepository {
       },
     });
   }
+  async findOne(id: number) {
+    return this.prisma.equipment.findUnique({
+      where: { id },
+    });
+  }
+
+  async updateDailyCost(id: number, dailyCost: number) {
+    return this.prisma.equipment.update({
+      where: { id },
+      data: {
+        dailyCost,
+      },
+    });
+  }
 }
