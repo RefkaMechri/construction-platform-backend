@@ -3,6 +3,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { EquipmentAssignmentsController } from './controllers/equipement-assignments.controller';
 import { EquipmentAssignmentsService } from './services/equipmentassignments.service';
 import { EquipmentAssignmentsRepository } from './repositories/equipement-assignments.repository';
+import { ProjectBudgetsModule } from '../project-budget/project-budgets.module';
 
 @Module({
   controllers: [EquipmentAssignmentsController],
@@ -11,6 +12,7 @@ import { EquipmentAssignmentsRepository } from './repositories/equipement-assign
     EquipmentAssignmentsRepository,
     PrismaService,
   ],
+  imports: [ProjectBudgetsModule],
   exports: [EquipmentAssignmentsService],
 })
 export class EquipmentAssignmentsModule {}

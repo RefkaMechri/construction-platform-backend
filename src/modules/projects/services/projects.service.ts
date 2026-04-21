@@ -83,7 +83,10 @@ export class ProjectsService {
       throw new NotFoundException('Projet introuvable.');
     }
 
-    return project;
+    return {
+      ...project,
+      projectManagerName: project.projectManager?.name,
+    };
   }
 
   async update(
@@ -116,13 +119,20 @@ export class ProjectsService {
       data.budget = updateProjectDto.budget;
     if (updateProjectDto.startDate !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.startDate = new Date(updateProjectDto.startDate);
+      data.baselineStartDate = new Date(updateProjectDto.startDate);
     if (updateProjectDto.endDate !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.endDate = new Date(updateProjectDto.endDate);
+      data.baselineEndDate = new Date(updateProjectDto.endDate);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (data.startDate && data.endDate && data.endDate < data.startDate) {
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.baselineStartDate &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.baselineEndDate &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.baselineEndDate < data.baselineStartDate
+    ) {
       throw new BadRequestException(
         'La date de fin doit être supérieure ou égale à la date de début.',
       );
