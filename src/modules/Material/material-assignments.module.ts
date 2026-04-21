@@ -3,6 +3,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { MaterialAssignmentsService } from './services/materialassignments.service';
 import { MaterialAssignmentsRepository } from './repositories/material-assignments.repository';
 import { MaterialAssignmentsController } from './controllers/material-assignments.controller';
+import { ProjectBudgetsModule } from '../project-budget/project-budgets.module';
 
 @Module({
   controllers: [MaterialAssignmentsController],
@@ -11,6 +12,7 @@ import { MaterialAssignmentsController } from './controllers/material-assignment
     MaterialAssignmentsRepository,
     PrismaService,
   ],
+  imports: [ProjectBudgetsModule],
   exports: [MaterialAssignmentsService],
 })
 export class MaterialAssignmentsModule {}

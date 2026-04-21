@@ -11,13 +11,38 @@ import { CreateMaterialAssignmentDto } from '../dto/create-material-assignment.d
 import { UpdateMaterialAssignmentDto } from '../dto/update-material-assignment.dto';
 import { MaterialAssignmentsRepository } from '../repositories/material-assignments.repository';
 import { MaterialAssignedTaskResponseDto } from '../dto/material-assigned-task-response.dto';
+import { ProjectBudgetsService } from 'src/modules/project-budget/services/project-budgets.service';
 
 @Injectable()
 export class MaterialAssignmentsService {
   constructor(
     private readonly materialAssignmentsRepository: MaterialAssignmentsRepository,
     private readonly prisma: PrismaService,
+    private readonly projectBudgetsService: ProjectBudgetsService,
   ) {}
+
+  private async getProjectIdByTaskId(taskId: number): Promise<number> {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        phase: {
+          include: {
+            project: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return task.phase.project.id;
+  }
 
   async create(createDto: CreateMaterialAssignmentDto) {
     if (createDto.quantity === undefined || createDto.quantity <= 0) {
@@ -96,6 +121,10 @@ export class MaterialAssignmentsService {
       },
     });
 
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+      task.phase.project.id,
+    );
+
     return assignment;
   }
 
@@ -123,6 +152,8 @@ export class MaterialAssignmentsService {
 
   async update(id: number, updateDto: UpdateMaterialAssignmentDto) {
     const current = await this.findOne(id);
+
+    const oldProjectId = await this.getProjectIdByTaskId(current.taskId);
 
     const isTryingToChangeConsumedCoreData =
       current.status === 'CONSUMED' &&
@@ -263,11 +294,23 @@ export class MaterialAssignmentsService {
       }
     }
 
+    const newProjectId = task.phase.project.id;
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(newProjectId);
+
+    if (oldProjectId !== newProjectId) {
+      await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+        oldProjectId,
+      );
+    }
+
     return updatedAssignment;
   }
 
   async remove(id: number) {
     const assignment = await this.findOne(id);
+
+    const projectId = await this.getProjectIdByTaskId(assignment.taskId);
 
     if (assignment.status === 'RESERVED') {
       await this.prisma.material.update({
@@ -280,7 +323,11 @@ export class MaterialAssignmentsService {
       });
     }
 
-    return this.materialAssignmentsRepository.delete(id);
+    const deleted = await this.materialAssignmentsRepository.delete(id);
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(projectId);
+
+    return deleted;
   }
 
   async getTasksByMaterialId(

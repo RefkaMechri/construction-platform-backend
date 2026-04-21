@@ -11,12 +11,14 @@ import { CreateEquipementAssignmentDto } from '../dto/create-equipement-assignme
 import { UpdateEquipementAssignmentDto } from '../dto/update-equipement-assignment.dto';
 import { EquipmentAssignmentsRepository } from '../repositories/equipement-assignments.repository';
 import { EquipmentAssignedTaskResponseDto } from '../dto/equipement-assigned-task-response.dto';
+import { ProjectBudgetsService } from 'src/modules/project-budget/services/project-budgets.service';
 
 @Injectable()
 export class EquipmentAssignmentsService {
   constructor(
     private readonly equipmentAssignmentsRepository: EquipmentAssignmentsRepository,
     private readonly prisma: PrismaService,
+    private readonly projectBudgetsService: ProjectBudgetsService,
   ) {}
 
   private hasDateOverlap(
@@ -54,6 +56,29 @@ export class EquipmentAssignmentsService {
         `L'équipement est indisponible du ${equipment.unavailableFrom?.toISOString().slice(0, 10)} au ${equipment.unavailableTo?.toISOString().slice(0, 10)}.`,
       );
     }
+  }
+
+  private async getProjectIdByTaskId(taskId: number): Promise<number> {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        phase: {
+          include: {
+            project: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return task.phase.project.id;
   }
 
   async create(createDto: CreateEquipementAssignmentDto) {
@@ -141,7 +166,13 @@ export class EquipmentAssignmentsService {
       }),
     };
 
-    return this.equipmentAssignmentsRepository.create(data);
+    const created = await this.equipmentAssignmentsRepository.create(data);
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+      task.phase.project.id,
+    );
+
+    return created;
   }
 
   async findAll() {
@@ -170,6 +201,8 @@ export class EquipmentAssignmentsService {
 
   async update(id: number, updateDto: UpdateEquipementAssignmentDto) {
     const current = await this.findOne(id);
+
+    const oldProjectId = await this.getProjectIdByTaskId(current.taskId);
 
     const nextEquipmentId = updateDto.equipmentId ?? current.equipmentId;
     const nextTaskId = updateDto.taskId ?? current.taskId;
@@ -275,12 +308,31 @@ export class EquipmentAssignmentsService {
       }),
     };
 
-    return this.equipmentAssignmentsRepository.update(id, data);
+    const updated = await this.equipmentAssignmentsRepository.update(id, data);
+
+    const newProjectId = task.phase.project.id;
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(newProjectId);
+
+    if (oldProjectId !== newProjectId) {
+      await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+        oldProjectId,
+      );
+    }
+
+    return updated;
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.equipmentAssignmentsRepository.delete(id);
+    const current = await this.findOne(id);
+
+    const projectId = await this.getProjectIdByTaskId(current.taskId);
+
+    const deleted = await this.equipmentAssignmentsRepository.delete(id);
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(projectId);
+
+    return deleted;
   }
 
   async getTasksByEquipmentId(

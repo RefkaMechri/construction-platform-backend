@@ -11,12 +11,14 @@ import { CreateEmployeeAssignmentDto } from '../dto/create-employee-assignment.d
 import { UpdateEmployeeAssignmentDto } from '../dto/update-employee-assignment.dto';
 import { EmployeeAssignmentsRepository } from '../repositories/employee-assignments.repository';
 import { EmployeeAssignedTaskResponseDto } from '../dto/employee-assigned-task-response.dto';
+import { ProjectBudgetsService } from 'src/modules/project-budget/services/project-budgets.service';
 
 @Injectable()
 export class EmployeeAssignmentsService {
   constructor(
     private readonly employeeAssignmentsRepository: EmployeeAssignmentsRepository,
     private readonly prisma: PrismaService,
+    private readonly projectBudgetsService: ProjectBudgetsService,
   ) {}
 
   private hasDateOverlap(
@@ -54,6 +56,31 @@ export class EmployeeAssignmentsService {
         `L'employé est indisponible du ${employee.unavailableFrom?.toISOString().slice(0, 10)} au ${employee.unavailableTo?.toISOString().slice(0, 10)}.`,
       );
     }
+  }
+
+  private async getProjectIdByTaskId(taskId: number): Promise<number> {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        phase: {
+          include: {
+            project: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(
+        `Tâche avec l'identifiant ${taskId} introuvable.`,
+      );
+    }
+
+    return task.phase.project.id;
   }
 
   async create(createDto: CreateEmployeeAssignmentDto) {
@@ -145,7 +172,13 @@ export class EmployeeAssignmentsService {
       }),
     };
 
-    return this.employeeAssignmentsRepository.create(data);
+    const created = await this.employeeAssignmentsRepository.create(data);
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+      task.phase.project.id,
+    );
+
+    return created;
   }
 
   async findAll() {
@@ -174,6 +207,8 @@ export class EmployeeAssignmentsService {
 
   async update(id: number, updateDto: UpdateEmployeeAssignmentDto) {
     const current = await this.findOne(id);
+
+    const oldProjectId = await this.getProjectIdByTaskId(current.taskId);
 
     const nextEmployeeId = updateDto.employeeId ?? current.employeeId;
     const nextTaskId = updateDto.taskId ?? current.taskId;
@@ -291,12 +326,31 @@ export class EmployeeAssignmentsService {
       }),
     };
 
-    return this.employeeAssignmentsRepository.update(id, data);
+    const updated = await this.employeeAssignmentsRepository.update(id, data);
+
+    const newProjectId = task.phase.project.id;
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(newProjectId);
+
+    if (oldProjectId !== newProjectId) {
+      await this.projectBudgetsService.syncProjectBudgetDirectCosts(
+        oldProjectId,
+      );
+    }
+
+    return updated;
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.employeeAssignmentsRepository.delete(id);
+    const current = await this.findOne(id);
+
+    const projectId = await this.getProjectIdByTaskId(current.taskId);
+
+    const deleted = await this.employeeAssignmentsRepository.delete(id);
+
+    await this.projectBudgetsService.syncProjectBudgetDirectCosts(projectId);
+
+    return deleted;
   }
 
   async getTasksByEmployeeId(

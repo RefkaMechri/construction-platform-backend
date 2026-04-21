@@ -30,6 +30,8 @@ import { MaterialModule } from './modules/Material/material.module';
 import { EmployeeAssignmentsModule } from './modules/employees/employee-assignments.module';
 import { EquipmentAssignmentsModule } from './modules/Equipement/equipment-assignments.module';
 import { MaterialAssignmentsModule } from './modules/Material/material-assignments.module';
+import { ProjectBudgetsModule } from './modules/project-budget/project-budgets.module';
+import { ProjectBudgetItemsModule } from './modules/project-budget/Project-budget-item.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -58,6 +60,8 @@ import { MaterialAssignmentsModule } from './modules/Material/material-assignmen
     EmployeeAssignmentsModule,
     EquipmentAssignmentsModule,
     MaterialAssignmentsModule,
+    ProjectBudgetsModule,
+    ProjectBudgetItemsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -23,12 +23,17 @@ export class ProjectsRepository {
     });
   }
 
-  async findByIdAndTenant(
-    id: number,
-    tenantId: number,
-  ): Promise<Project | null> {
+  async findByIdAndTenant(id: number, tenantId: number) {
     return this.prisma.project.findFirst({
       where: { id, tenantId },
+      include: {
+        projectManager: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
@@ -50,6 +55,7 @@ export class ProjectsRepository {
       where: { id },
     });
   }
+
   async findByIdWithPhases(projectId: number) {
     return this.prisma.project.findUnique({
       where: { id: projectId },
