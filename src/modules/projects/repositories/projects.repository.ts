@@ -11,10 +11,28 @@ export class ProjectsRepository {
   }
 
   async findAllByTenant(tenantId: number): Promise<Project[]> {
-    return this.prisma.project.findMany({
+    const projects = await this.prisma.project.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        budgetDetails: {
+          select: {
+            totalBudget: true,
+          },
+        },
+        projectManager: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
+
+    return projects.map((project) => ({
+      ...project,
+      projectManager: project.projectManager?.name ?? '',
+      totalBudget: project.budgetDetails?.totalBudget ?? 0,
+    })) as Project[];
   }
 
   async findById(id: number): Promise<Project | null> {
@@ -31,6 +49,11 @@ export class ProjectsRepository {
           select: {
             id: true,
             name: true,
+          },
+        },
+        budgetDetails: {
+          select: {
+            totalBudget: true,
           },
         },
       },

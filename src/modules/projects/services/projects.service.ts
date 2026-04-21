@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -86,6 +87,7 @@ export class ProjectsService {
     return {
       ...project,
       projectManagerName: project.projectManager?.name,
+      totalBudget: project.budgetDetails?.totalBudget ?? 0,
     };
   }
 
