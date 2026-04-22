@@ -32,6 +32,8 @@ import { EquipmentAssignmentsModule } from './modules/Equipement/equipment-assig
 import { MaterialAssignmentsModule } from './modules/Material/material-assignments.module';
 import { ProjectBudgetsModule } from './modules/project-budget/project-budgets.module';
 import { ProjectBudgetItemsModule } from './modules/project-budget/Project-budget-item.module';
+import { NotificationsModule } from './modules/Notification/notifications.module';
+import { DeadlinesModule } from './modules/deadlines/deadlines.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -62,6 +64,8 @@ import { ProjectBudgetItemsModule } from './modules/project-budget/Project-budge
     MaterialAssignmentsModule,
     ProjectBudgetsModule,
     ProjectBudgetItemsModule,
+    NotificationsModule,
+    DeadlinesModule,
   ],
   controllers: [AppController],
   providers: [

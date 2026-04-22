@@ -31,6 +31,7 @@ model User {
   equipments Equipment[] 
   materieaux  Material[] @relation("MaterialCreatedBy")
   createdEmployees Employee[] @relation("EmployeeCreatedBy")
+  notifications Notification[]
 
   @@map("users")
 }
@@ -539,4 +540,31 @@ model BudgetIndirectItem {
   @@index([projectBudgetId])
   @@index([category])
   @@map("budget_indirect_items")
+}
+model Notification {
+  id         Int                  @id @default(autoincrement())
+  userId     Int
+  type       String
+  title      String
+  message    String
+  severity   NotificationSeverity @default(INFO)
+  isRead     Boolean              @default(false)
+  readAt     DateTime?
+  sourceType String?
+  sourceId   Int?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([sourceType, sourceId])
+}
+enum NotificationSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
 }
