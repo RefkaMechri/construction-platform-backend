@@ -167,6 +167,7 @@ model Project {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   aiAnalyses PlanningAIAnalysis[]
+  resourceAiAnalyses ResourceAIAnalysis[]
 
   @@index([tenantId])
   @@index([projectManagerId])
@@ -570,6 +571,9 @@ enum NotificationSeverity {
   CRITICAL
 }
 
+//************************************************************/
+//*                    IA                                    */
+//************************************************************/
 model PlanningAIAnalysis {
   id        Int      @id @default(autoincrement())
 
@@ -585,4 +589,21 @@ model PlanningAIAnalysis {
 
   @@index([projectId])
   @@map("planning_ai_analyses")
+}
+
+model ResourceAIAnalysis {
+  id        Int      @id @default(autoincrement())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  analysis  Json
+  provider  String   @default("ollama")
+  model     String   @default("llama3.1:8b")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("resource_ai_analyses")
 }

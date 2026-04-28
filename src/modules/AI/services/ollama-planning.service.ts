@@ -20,7 +20,7 @@ export class OllamaPlanningService {
 
   async analyzePlanning(planning: unknown) {
     const prompt = `
-Tu es un expert senior en planification de projets de construction dans la pays tunisie.
+Tu es un expert senior en planification de projets de construction en Tunisie, avec une expertise en estimation des durées, gestion des risques et analyse de planning.
 
 Analyse UNIQUEMENT le planning fourni.
 N'invente aucune phase, tâche, sous-tâche ou milestone.
