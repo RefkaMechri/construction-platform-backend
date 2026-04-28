@@ -6,15 +6,24 @@ import { PlanningAnalysisService } from './services/planning-analysis.service';
 import { OllamaResourceService } from './services/ollama-resource.service';
 import { ResourceAnalysisService } from './services/ressource-analysis.service';
 import { AiResourceController } from './controllers/ai-resource.controller';
+import { AiPlanningImpactController } from './controllers/ai-planning-impact.controller';
+import { PlanningImpactSimulationService } from './services/planning-impact-simulation.service';
+import { OllamaImpactReportService } from './services/ollama-impact-report.service';
 
 @Module({
-  controllers: [AiPlanningController, AiResourceController],
+  controllers: [
+    AiPlanningController,
+    AiResourceController,
+    AiPlanningImpactController,
+  ],
   providers: [
     PrismaService,
-    OllamaPlanningService,
     PlanningAnalysisService,
-    OllamaResourceService,
+    OllamaPlanningService,
     ResourceAnalysisService,
+    OllamaResourceService,
+    PlanningImpactSimulationService,
+    OllamaImpactReportService,
   ],
   exports: [PlanningAnalysisService],
 })
