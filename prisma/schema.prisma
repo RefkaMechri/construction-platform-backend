@@ -168,6 +168,7 @@ model Project {
   updatedAt        DateTime      @updatedAt
   aiAnalyses PlanningAIAnalysis[]
   resourceAiAnalyses ResourceAIAnalysis[]
+  budgetAIAnalysis BudgetAIAnalysis[]
 
   @@index([tenantId])
   @@index([projectManagerId])
@@ -606,4 +607,20 @@ model ResourceAIAnalysis {
 
   @@index([projectId])
   @@map("resource_ai_analyses")
+}
+model BudgetAIAnalysis {
+  id        Int      @id @default(autoincrement())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  analysis  Json
+  provider  String   @default("ollama")
+  model     String   @default("llama3.1:8b")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("budget_ai_analyses")
 }
