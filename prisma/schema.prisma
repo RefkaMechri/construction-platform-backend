@@ -67,6 +67,7 @@ model Tenant {
   employees Employee[]
   emquipements Equipment[] 
   materieaux   Material[] 
+  portfolioAiAnalyses PortfolioAIAnalysis[]
 
   @@map("tenants")
 }
@@ -152,6 +153,9 @@ model Project {
   description      String?
   status           ProjectStatus @default(BROUILLON)
   type             ProjectType
+  siteArea    Float? // surface du terrain en m²
+  builtArea   Float? // surface construite en m²
+  floorsCount Int?   // nombre d'étages
 
   // Le créateur = chef de projet
   projectManagerId Int
@@ -623,4 +627,21 @@ model BudgetAIAnalysis {
 
   @@index([projectId])
   @@map("budget_ai_analyses")
+}
+
+model PortfolioAIAnalysis {
+  id Int @id @default(autoincrement())
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  analysis Json
+  provider String @default("ollama")
+  model    String @default("llama3.1:8b")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("portfolio_ai_analyses")
 }

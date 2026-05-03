@@ -2,15 +2,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ProjectStatus, ProjectType } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { OllamaResourceService } from './ollama-resource.service';
 
 @Injectable()
 export class ResourceAnalysisService {
   constructor(
-    private prisma: PrismaService,
-    private ai: OllamaResourceService,
+    private readonly prisma: PrismaService,
+    private readonly ai: OllamaResourceService,
   ) {}
 
   private chunkArray<T>(items: T[], size: number): T[][] {
@@ -29,14 +31,32 @@ export class ResourceAnalysisService {
     return 'high';
   }
 
+  private calculateDurationDays(startDate: Date | null, endDate: Date | null) {
+    if (!startDate || !endDate) return null;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    return (
+      Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    );
+  }
+
   async getData(projectId: number, tenantId: number) {
     return this.prisma.project.findFirst({
       where: { id: projectId, tenantId },
       select: {
         id: true,
         name: true,
+        code: true,
         type: true,
         status: true,
+        siteArea: true,
+        builtArea: true,
+        floorsCount: true,
         phases: {
           select: {
             id: true,
@@ -50,6 +70,7 @@ export class ResourceAnalysisService {
                 endDate: true,
                 status: true,
                 priority: true,
+                parentTaskId: true,
                 assignments: {
                   select: {
                     startDate: true,
@@ -106,95 +127,254 @@ export class ResourceAnalysisService {
     });
   }
 
-  private flattenTasks(project: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return project.phases.flatMap((phase: any) =>
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      phase.tasks.map((task: any) => ({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        taskId: task.id,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        taskName: task.name,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        phaseId: phase.id,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        phaseName: phase.name,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        description: task.description,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        startDate: task.startDate,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        endDate: task.endDate,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        status: task.status,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        priority: task.priority,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        employeesAssigned: task.assignments.map((a: any) => ({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          employeeId: a.employee.id,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          name: a.employee.name,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          jobTitle: a.employee.jobTitle,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          skills: a.employee.skills,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          availabilityStatus: a.employee.availabilityStatus,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          startDate: a.startDate,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          endDate: a.endDate,
-        })),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        equipmentAssigned: task.assignmentsEq.map((a: any) => ({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          equipmentId: a.equipment.id,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          name: a.equipment.name,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          category: a.equipment.category,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          capacity: a.equipment.capacity,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          availabilityStatus: a.equipment.availabilityStatus,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          condition: a.equipment.condition,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          startDate: a.startDate,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          endDate: a.endDate,
-        })),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        materialsAssigned: task.assignmentsMt.map((a: any) => ({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          materialId: a.material.id,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          name: a.material.name,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          category: a.material.category,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          assignedQuantity: a.quantity,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          unit: a.material.unit,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          stockQuantity: a.material.quantity,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          reservedQuantity: a.material.reservedQuantity,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          availabilityStatus: a.material.availabilityStatus,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          startDate: a.startDate,
-        })),
+  async getHistoricalProjectsForAI(
+    currentProjectId: number,
+    tenantId: number,
+    projectType: ProjectType,
+  ) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        tenantId,
+        id: { not: currentProjectId },
+        status: ProjectStatus.TERMINE,
+        type: projectType,
+      },
+      take: 5,
+      orderBy: {
+        endDate: 'desc',
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        type: true,
+        status: true,
+        siteArea: true,
+        builtArea: true,
+        floorsCount: true,
+        startDate: true,
+        endDate: true,
+        phases: {
+          select: {
+            id: true,
+            name: true,
+            tasks: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+                priority: true,
+                parentTaskId: true,
+                assignments: {
+                  select: {
+                    employee: {
+                      select: {
+                        id: true,
+                        jobTitle: true,
+                        skills: true,
+                      },
+                    },
+                  },
+                },
+                assignmentsEq: {
+                  select: {
+                    equipment: {
+                      select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                        capacity: true,
+                      },
+                    },
+                  },
+                },
+                assignmentsMt: {
+                  select: {
+                    quantity: true,
+                    material: {
+                      select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                        unit: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      code: project.code,
+      type: project.type,
+      status: project.status,
+      siteArea: project.siteArea,
+      builtArea: project.builtArea,
+      floorsCount: project.floorsCount,
+      durationDays: this.calculateDurationDays(
+        project.startDate,
+        project.endDate,
+      ),
+      phases: project.phases.map((phase) => ({
+        id: phase.id,
+        name: phase.name,
+        tasks: phase.tasks
+          .filter((task) => task.parentTaskId === null)
+          .map((task) => ({
+            id: task.id,
+            name: task.name,
+            description: task.description,
+            status: task.status,
+            priority: task.priority,
+            durationDays: this.calculateDurationDays(
+              task.startDate,
+              task.endDate,
+            ),
+            employeesUsed: this.groupEmployeesByProfile(task.assignments),
+            equipmentUsed: this.groupEquipmentByName(task.assignmentsEq),
+            materialsUsed: this.groupMaterialsByName(task.assignmentsMt),
+          })),
       })),
+    }));
+  }
+
+  private groupEmployeesByProfile(assignments: any[]) {
+    const result = new Map<string, number>();
+
+    for (const assignment of assignments) {
+      const profile =
+        assignment.employee?.jobTitle ||
+        assignment.employee?.skills ||
+        'Profil non défini';
+
+      result.set(profile, (result.get(profile) ?? 0) + 1);
+    }
+
+    return Array.from(result.entries()).map(([profile, quantity]) => ({
+      profile,
+      quantity,
+    }));
+  }
+
+  private groupEquipmentByName(assignmentsEq: any[]) {
+    const result = new Map<string, number>();
+
+    for (const assignment of assignmentsEq) {
+      const name =
+        assignment.equipment?.name ||
+        assignment.equipment?.category ||
+        'Équipement non défini';
+
+      result.set(name, (result.get(name) ?? 0) + 1);
+    }
+
+    return Array.from(result.entries()).map(([equipmentName, quantity]) => ({
+      equipmentName,
+      quantity,
+    }));
+  }
+
+  private groupMaterialsByName(assignmentsMt: any[]) {
+    const result = new Map<
+      string,
+      {
+        materialName: string;
+        unit: string | null;
+        quantity: number;
+      }
+    >();
+
+    for (const assignment of assignmentsMt) {
+      const materialName =
+        assignment.material?.name ||
+        assignment.material?.category ||
+        'Matériau non défini';
+
+      const current = result.get(materialName);
+
+      result.set(materialName, {
+        materialName,
+        unit: assignment.material?.unit ?? null,
+        quantity:
+          Number(current?.quantity ?? 0) + Number(assignment.quantity ?? 0),
+      });
+    }
+
+    return Array.from(result.values());
+  }
+
+  private flattenTasks(project: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    return project.phases.flatMap((phase: any) =>
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      phase.tasks
+        .filter((task: any) => task.parentTaskId === null)
+        .map((task: any) => ({
+          taskId: task.id,
+          taskName: task.name,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          description: task.description,
+          startDate: task.startDate,
+          endDate: task.endDate,
+          durationDays: this.calculateDurationDays(
+            task.startDate,
+            task.endDate,
+          ),
+          status: task.status,
+          priority: task.priority,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          employeesAssigned: task.assignments.map((a: any) => ({
+            employeeId: a.employee.id,
+            name: a.employee.name,
+            jobTitle: a.employee.jobTitle,
+            skills: a.employee.skills,
+            availabilityStatus: a.employee.availabilityStatus,
+            startDate: a.startDate,
+            endDate: a.endDate,
+          })),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          equipmentAssigned: task.assignmentsEq.map((a: any) => ({
+            equipmentId: a.equipment.id,
+            name: a.equipment.name,
+            category: a.equipment.category,
+            capacity: a.equipment.capacity,
+            availabilityStatus: a.equipment.availabilityStatus,
+            condition: a.equipment.condition,
+            startDate: a.startDate,
+            endDate: a.endDate,
+          })),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          materialsAssigned: task.assignmentsMt.map((a: any) => ({
+            materialId: a.material.id,
+            name: a.material.name,
+            category: a.material.category,
+            assignedQuantity: Number(a.quantity ?? 0),
+            unit: a.material.unit,
+            stockQuantity: Number(a.material.quantity ?? 0),
+            reservedQuantity: Number(a.material.reservedQuantity ?? 0),
+            availabilityStatus: a.material.availabilityStatus,
+            startDate: a.startDate,
+          })),
+        })),
     );
   }
 
   private mergeAnalyses(analyses: any[]) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     const tasksAnalysis = analyses.flatMap((a) => a.tasksAnalysis ?? []);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     const priorityActions = analyses.flatMap((a) => a.priorityActions ?? []);
+    const historicalReferenceUsed = analyses.flatMap(
+      (a) => a.historicalReferenceUsed ?? [],
+    );
 
     const globalResourceRiskPercent = tasksAnalysis.length
       ? Math.max(...tasksAnalysis.map((t: any) => t.resourceRiskPercent ?? 0))
@@ -203,7 +383,8 @@ export class ResourceAnalysisService {
     return {
       globalResourceRiskPercent,
       globalRiskLevel: this.getRiskLevel(globalResourceRiskPercent),
-      summary: `Analyse des ressources générée sur ${tasksAnalysis.length} tâche(s).`,
+      summary: `Analyse des ressources générée sur ${tasksAnalysis.length} tâche(s), avec prise en compte de ${historicalReferenceUsed.length} référence(s) historique(s).`,
+      historicalReferenceUsed,
       tasksAnalysis,
       priorityActions,
     };
@@ -216,20 +397,36 @@ export class ResourceAnalysisService {
       throw new NotFoundException('Projet introuvable');
     }
 
+    const historicalProjects = await this.getHistoricalProjectsForAI(
+      projectId,
+      tenantId,
+      project.type,
+    );
+
     const allTasks = this.flattenTasks(project);
+
+    /**
+     * Tu peux mettre 2 ou 3 si ton modèle supporte bien le contexte.
+     * 1 = plus précis mais plus lent.
+     */
     const taskChunks = this.chunkArray(allTasks, 1);
 
     const analyses: any[] = [];
 
     for (const chunk of taskChunks) {
       const chunkAnalysis = await this.ai.analyzeResources({
-        project: {
+        currentProject: {
           id: project.id,
           name: project.name,
+          code: project.code,
           type: project.type,
           status: project.status,
+          siteArea: project.siteArea,
+          builtArea: project.builtArea,
+          floorsCount: project.floorsCount,
+          tasks: chunk,
         },
-        tasks: chunk,
+        historicalProjects,
       });
 
       analyses.push(chunkAnalysis);

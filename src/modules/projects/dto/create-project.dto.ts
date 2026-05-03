@@ -1,6 +1,7 @@
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -14,28 +15,28 @@ export class CreateProjectDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
-  name: string;
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  client: string;
+  client!: string;
 
   @IsString()
   @IsNotEmpty()
-  address: string;
+  address!: string;
 
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 
   @IsNumber()
   @IsPositive()
-  budget: number;
+  budget!: number;
 
   @IsEnum(ProjectType)
-  type: ProjectType;
+  type!: ProjectType;
 
   @IsOptional()
   @IsString()
@@ -44,4 +45,20 @@ export class CreateProjectDto {
   @IsOptional()
   @IsEnum(ProjectStatus)
   status?: ProjectStatus;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  siteArea?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  builtArea?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @IsPositive()
+  floorsCount?: number;
 }

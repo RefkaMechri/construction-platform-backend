@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { OllamaPlanningService } from './ollama-planning.service';
+import { ProjectStatus, ProjectType } from '@prisma/client';
 
 type CurrentUser = {
   id: number;
@@ -33,11 +34,7 @@ export class PlanningAnalysisService {
     );
   }
 
-  async getPlanningForAI(
-    projectId: number,
-    tenantId: number,
-    // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-  ): Promise<any | null> {
+  async getPlanningForAI(projectId: number, tenantId: number) {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
@@ -106,8 +103,13 @@ export class PlanningAnalysisService {
       id: project.id,
       name: project.name,
       code: project.code,
+      client: project.client,
+      address: project.address,
       type: project.type,
       status: project.status,
+      siteArea: project.siteArea,
+      builtArea: project.builtArea,
+      floorsCount: project.floorsCount,
       startDate: project.startDate,
       endDate: project.endDate,
       baselineStartDate: project.baselineStartDate,
@@ -209,22 +211,153 @@ export class PlanningAnalysisService {
     };
   }
 
+  async getHistoricalProjectsForAI(
+    currentProjectId: number,
+    tenantId: number,
+    projectType: ProjectType,
+  ) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        tenantId,
+        id: {
+          not: currentProjectId,
+        },
+        status: ProjectStatus.TERMINE,
+        type: projectType,
+      },
+      take: 5,
+      orderBy: {
+        endDate: 'desc',
+      },
+      include: {
+        phases: {
+          orderBy: { order: 'asc' },
+          include: {
+            tasks: {
+              orderBy: { order: 'asc' },
+              include: {
+                subtasks: {
+                  orderBy: { order: 'asc' },
+                },
+                milestone: true,
+              },
+            },
+          },
+        },
+        milestones: {
+          include: {
+            tasks: {
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      code: project.code,
+      type: project.type,
+      status: project.status,
+      siteArea: project.siteArea,
+      builtArea: project.builtArea,
+      floorsCount: project.floorsCount,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      durationDays: this.calculateDurationDays(
+        project.startDate,
+        project.endDate,
+      ),
+      phases: project.phases.map((phase) => ({
+        id: phase.id,
+        name: phase.name,
+        status: phase.status,
+        startDate: phase.startDate,
+        endDate: phase.endDate,
+        durationDays: this.calculateDurationDays(
+          phase.startDate,
+          phase.endDate,
+        ),
+        tasks: phase.tasks
+          .filter((task) => task.parentTaskId === null)
+          .map((task) => ({
+            id: task.id,
+            name: task.name,
+            status: task.status,
+            priority: task.priority,
+            startDate: task.startDate,
+            endDate: task.endDate,
+            durationDays: this.calculateDurationDays(
+              task.startDate,
+              task.endDate,
+            ),
+            milestoneName: task.milestone?.name ?? null,
+            subtasks: task.subtasks.map((subtask) => ({
+              id: subtask.id,
+              name: subtask.name,
+              status: subtask.status,
+              priority: subtask.priority,
+              startDate: subtask.startDate,
+              endDate: subtask.endDate,
+              durationDays: this.calculateDurationDays(
+                subtask.startDate,
+                subtask.endDate,
+              ),
+            })),
+          })),
+      })),
+      milestones: project.milestones.map((milestone) => ({
+        id: milestone.id,
+        name: milestone.name,
+        dueDate: milestone.dueDate,
+        achievedAt: milestone.achievedAt,
+        status: milestone.status,
+        tasks: milestone.tasks.map((task) => ({
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          durationDays: this.calculateDurationDays(
+            task.startDate,
+            task.endDate,
+          ),
+        })),
+      })),
+    }));
+  }
+
   async analyzeProjectPlanning(projectId: number, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException('Utilisateur sans tenant.');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const planning = await this.getPlanningForAI(projectId, user.tenantId);
+    const selectedProject = await this.getPlanningForAI(
+      projectId,
+      user.tenantId,
+    );
 
-    if (!planning) {
+    if (!selectedProject) {
       throw new NotFoundException('Projet introuvable.');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const analysis = await this.ollamaPlanningService.analyzePlanning(planning);
+    const historicalProjects = await this.getHistoricalProjectsForAI(
+      projectId,
+      user.tenantId,
+      selectedProject.type,
+    );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const analysis = await this.ollamaPlanningService.analyzePlanning({
+      selectedProject,
+      historicalProjects,
+    });
+
     return this.prisma.planningAIAnalysis.create({
       data: {
         projectId,
@@ -236,18 +369,14 @@ export class PlanningAnalysisService {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getLatestAnalysis(projectId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.planningAIAnalysis.findFirst({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getAnalysisHistory(projectId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.planningAIAnalysis.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },

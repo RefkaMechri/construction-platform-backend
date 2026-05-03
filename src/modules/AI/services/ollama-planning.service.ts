@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
 export class OllamaPlanningService {
-  private extractJson(text: string) {
+  private extractJson(text: string): string {
     const cleaned = text
       .replace(/```json/g, '')
       .replace(/```/g, '')
@@ -11,46 +11,58 @@ export class OllamaPlanningService {
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
 
-    if (firstBrace === -1 || lastBrace === -1) {
-      throw new Error('Aucun JSON trouvé');
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+      throw new Error('Aucun JSON valide trouvé');
     }
 
     return cleaned.substring(firstBrace, lastBrace + 1);
   }
 
-  async analyzePlanning(planning: unknown) {
+  async analyzePlanning(dataForAI: unknown) {
     const prompt = `
-Tu es un expert senior en planification de projets de construction en Tunisie, avec une expertise en estimation des durées, gestion des risques et analyse de planning.
-
-Analyse UNIQUEMENT le planning fourni.
-N'invente aucune phase, tâche, sous-tâche ou milestone.
-Chaque remarque doit citer un élément réel du planning avec son id et son nom.
+Tu es un expert senior en planification de projets de construction en Tunisie.
 
 Objectif :
-- calculer un pourcentage de risque de retard global
-- détecter les tâches sous-estimées
-- détecter les tâches surestimées
-- expliquer les raisons précises
-- proposer une durée corrigée quand c'est nécessaire
-- proposer des améliorations concrètes et actionnables
+Analyser UNIQUEMENT selectedProject.
+historicalProjects contient des projets terminés similaires provenant de la base de données.
+Utilise historicalProjects uniquement comme référence pour comparer les durées réelles observées.
+N'analyse jamais historicalProjects comme projets à auditer.
+N'invente aucune phase, tâche, sous-tâche ou milestone.
+Chaque remarque doit citer un élément réel de selectedProject avec son id et son nom.
 
-Règles importantes :
-- Ne donne pas de phrases générales.
+Règles :
+- Le risque doit être un nombre entre 0 et 100.
 - Si une tâche est sous-estimée, donne une durée recommandée en jours.
 - Si une tâche est surestimée, donne une durée recommandée en jours.
-- Si une milestone est risquée, explique pourquoi avec les tâches concernées.
-- Les suggestions doivent être précises : quelle tâche modifier, quelle durée, quelle dépendance ou quelle action.
-- Le risque doit être un nombre entre 0 et 100.
-- Réponds uniquement en JSON valide. Pas de markdown. Pas de texte avant ou après.
+- Les recommandations doivent être précises et actionnables.
+- Si historicalProjects est vide, base l'analyse uniquement sur selectedProject.
+- Réponds uniquement en JSON valide.
+- Aucun markdown.
+- Aucun texte avant ou après JSON.
 
-Planning :
-${JSON.stringify(planning, null, 2)}
+Données :
+${JSON.stringify(dataForAI, null, 2)}
 
 Structure JSON obligatoire :
 {
+  "projectId": 0,
+  "projectName": "",
+  "projectCode": "",
   "globalDelayRiskPercent": 0,
   "globalRiskLevel": "low | medium | high",
   "summary": "",
+  "historicalReferenceUsed": [
+    {
+      "historicalProjectId": 0,
+      "historicalProjectName": "",
+      "similarElementName": "",
+      "historicalDurationDays": 0,
+      "currentElementId": 0,
+      "currentElementName": "",
+      "currentDurationDays": 0,
+      "conclusion": ""
+    }
+  ],
   "delayRiskReasons": [
     {
       "reason": "",
@@ -129,7 +141,7 @@ Structure JSON obligatoire :
         format: 'json',
         options: {
           temperature: 0.1,
-          num_predict: 1200,
+          num_predict: 2500,
         },
       }),
     });
@@ -138,10 +150,12 @@ Structure JSON obligatoire :
       throw new InternalServerErrorException('Erreur appel Ollama.');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const data = await response.json();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const data = (await response.json()) as { response?: string };
     const rawText = data.response;
+
+    if (!rawText) {
+      throw new InternalServerErrorException('Réponse Ollama vide.');
+    }
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return

@@ -23,6 +23,23 @@ export class ProjectsService {
     return `PRJ-${String(sequence).padStart(3, '0')}`;
   }
 
+  private validateProjectSurface(
+    siteArea?: number,
+    builtArea?: number,
+    floorsCount?: number,
+  ) {
+    if (
+      siteArea !== undefined &&
+      builtArea !== undefined &&
+      floorsCount !== undefined &&
+      builtArea > siteArea * floorsCount
+    ) {
+      throw new BadRequestException(
+        'La surface construite ne peut pas dépasser surface terrain × nombre d’étages.',
+      );
+    }
+  }
+
   async create(createProjectDto: CreateProjectDto, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
@@ -37,6 +54,12 @@ export class ProjectsService {
       );
     }
 
+    this.validateProjectSurface(
+      createProjectDto.siteArea,
+      createProjectDto.builtArea,
+      createProjectDto.floorsCount,
+    );
+
     const count = await this.projectsRepository.countByTenant(user.tenantId);
     const code = this.generateProjectCode(count + 1);
 
@@ -45,6 +68,11 @@ export class ProjectsService {
       code,
       client: createProjectDto.client,
       address: createProjectDto.address,
+
+      siteArea: createProjectDto.siteArea,
+      builtArea: createProjectDto.builtArea,
+      floorsCount: createProjectDto.floorsCount,
+
       startDate,
       endDate,
       baselineStartDate: startDate,
@@ -102,31 +130,63 @@ export class ProjectsService {
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (updateProjectDto.name !== undefined) data.name = updateProjectDto.name;
+
     if (updateProjectDto.client !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.client = updateProjectDto.client;
+
     if (updateProjectDto.address !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.address = updateProjectDto.address;
+
+    if (updateProjectDto.siteArea !== undefined)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.siteArea = updateProjectDto.siteArea;
+
+    if (updateProjectDto.builtArea !== undefined)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.builtArea = updateProjectDto.builtArea;
+
+    if (updateProjectDto.floorsCount !== undefined)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.floorsCount = updateProjectDto.floorsCount;
+
     if (updateProjectDto.description !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.description = updateProjectDto.description;
+
     if (updateProjectDto.status !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.status = updateProjectDto.status;
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (updateProjectDto.type !== undefined) data.type = updateProjectDto.type;
+
     if (updateProjectDto.budget !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.budget = updateProjectDto.budget;
+
     if (updateProjectDto.startDate !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.baselineStartDate = new Date(updateProjectDto.startDate);
+
     if (updateProjectDto.endDate !== undefined)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.baselineEndDate = new Date(updateProjectDto.endDate);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const finalSiteArea = data.siteArea ?? project.siteArea;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const finalBuiltArea = data.builtArea ?? project.builtArea;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const finalFloorsCount = data.floorsCount ?? project.floorsCount;
+
+    this.validateProjectSurface(
+      finalSiteArea,
+      finalBuiltArea,
+      finalFloorsCount,
+    );
+
     if (
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       data.baselineStartDate &&
@@ -147,36 +207,28 @@ export class ProjectsService {
     const project = await this.findOne(id, user);
     return this.projectsRepository.delete(project.id);
   }
+
   async refreshProjectStatus(projectId: number): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const project = await this.projectsRepository.findByIdWithPhases(projectId);
 
     if (!project) {
       throw new NotFoundException('Projet introuvable.');
     }
 
-    // On ne touche pas à un projet annulé
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (project.status === ProjectStatus.ANNULE) {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const phases = project.phases ?? [];
 
-    // S'il n'y a aucune phase, on ne met pas TERMINE
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (phases.length === 0) {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const allCompleted = phases.every(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       (phase) => phase.status === PhaseStatus.COMPLETED,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (allCompleted && project.status !== ProjectStatus.TERMINE) {
       await this.projectsRepository.update(projectId, {
         status: ProjectStatus.TERMINE,
@@ -184,10 +236,6 @@ export class ProjectsService {
       return;
     }
 
-    // Optionnel :
-    // si toutes les phases ne sont pas terminées et que le projet était TERMINE,
-    // on le remet EN_COURS
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!allCompleted && project.status === ProjectStatus.TERMINE) {
       await this.projectsRepository.update(projectId, {
         status: ProjectStatus.EN_COURS,

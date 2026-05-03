@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
 export class OllamaResourceService {
-  private extractJson(text: string) {
+  private extractJson(text: string): string {
     const cleaned = text
       .replace(/```json/g, '')
       .replace(/```/g, '')
@@ -11,7 +11,7 @@ export class OllamaResourceService {
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
 
-    if (start === -1 || end === -1) {
+    if (start === -1 || end === -1 || end <= start) {
       throw new Error('JSON non trouvé');
     }
 
@@ -22,12 +22,24 @@ export class OllamaResourceService {
     return `
 Tu es un expert senior en gestion des ressources pour chantiers de construction en Tunisie.
 
-Analyse uniquement les tâches fournies.
-N'invente jamais de tâche, projet, ressource ou affectation.
-N'utilise jamais des exemples comme "Task 1", "Project 1", "Equipment 1".
-Retourne uniquement le JSON demandé.
+Objectif :
+Analyser UNIQUEMENT currentProject.tasks.
 
-Données à analyser :
+historicalProjects contient des projets terminés similaires venant de la base de données.
+Utilise historicalProjects uniquement comme référence historique pour améliorer les recommandations :
+- profils employés souvent utilisés pour des tâches similaires
+- équipements souvent utilisés pour des tâches similaires
+- matériaux souvent utilisés pour des tâches similaires
+- quantités observées dans des tâches similaires
+
+Interdictions :
+- N'analyse jamais historicalProjects comme projets à auditer.
+- N'invente jamais de tâche, projet, ressource ou affectation.
+- N'utilise jamais des exemples comme "Task 1", "Project 1", "Equipment 1".
+- Ne propose une ressource que si elle est cohérente avec la tâche courante.
+- Si historicalProjects est vide, analyse uniquement selon les règles métier.
+
+Données :
 ${JSON.stringify(data, null, 2)}
 
 Règles métier Tunisie :
@@ -41,6 +53,8 @@ Règles métier Tunisie :
 
 Pour chaque tâche :
 - compare ressources affectées vs ressources recommandées
+- utilise l'historique seulement comme référence
+- cite les projets historiques utilisés si pertinent
 - donne les ressources manquantes
 - donne une correction précise
 - si aucune ressource n’est nécessaire, mets recommendedQuantity = 0
@@ -50,6 +64,19 @@ Format JSON obligatoire :
   "globalResourceRiskPercent": 0,
   "globalRiskLevel": "low | medium | high",
   "summary": "",
+  "historicalReferenceUsed": [
+    {
+      "historicalProjectId": 0,
+      "historicalProjectName": "",
+      "currentTaskId": 0,
+      "currentTaskName": "",
+      "similarHistoricalTaskName": "",
+      "resourceType": "employee | equipment | material",
+      "observedResource": "",
+      "observedQuantity": 0,
+      "conclusion": ""
+    }
+  ],
   "tasksAnalysis": [
     {
       "taskId": 0,
@@ -101,7 +128,16 @@ Format JSON obligatoire :
       "taskRecommendation": ""
     }
   ],
-  "priorityActions": []
+  "priorityActions": [
+    {
+      "priority": 1,
+      "taskId": 0,
+      "taskName": "",
+      "action": "",
+      "reason": "",
+      "expectedImpact": ""
+    }
+  ]
 }
 `;
   }
@@ -120,7 +156,7 @@ Format JSON obligatoire :
         format: 'json',
         options: {
           temperature: 0,
-          num_predict: 1200,
+          num_predict: 2500,
         },
       }),
     });
@@ -129,22 +165,23 @@ Format JSON obligatoire :
       throw new InternalServerErrorException('Erreur Ollama');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const dataRes = await res.json();
+    const dataRes = (await res.json()) as { response?: string };
+
+    if (!dataRes.response) {
+      throw new InternalServerErrorException('Réponse Ollama vide');
+    }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-      const parsed = JSON.parse(this.extractJson(dataRes.response));
+      const parsed = JSON.parse(this.extractJson(dataRes.response)) as {
+        tasksAnalysis?: unknown;
+      };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (!parsed.tasksAnalysis) {
         throw new Error('Structure IA invalide');
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return parsed;
     } catch {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       console.log('Réponse brute Ollama:', dataRes.response);
       throw new InternalServerErrorException('JSON invalide IA');
     }
