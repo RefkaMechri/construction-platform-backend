@@ -12,13 +12,16 @@ import { OllamaImpactReportService } from './services/ollama-impact-report.servi
 import { AiBudgetController } from './controllers/ai-budget.controller';
 import { BudgetAnalysisService } from './services/budget-analysis.service';
 import { OllamaBudgetService } from './services/ollama-budget.service';
-
+import { PortfolioAnalysisController } from './controllers/portfolio-analysis.controller';
+import { PortfolioAnalysisService } from './services/portfolio1-analysis.service';
+import { OpenRouterPortfolioService } from './services/openrouter-portfolio.service';
 @Module({
   controllers: [
     AiPlanningController,
     AiResourceController,
     AiPlanningImpactController,
     AiBudgetController,
+    PortfolioAnalysisController,
   ],
   providers: [
     PrismaService,
@@ -30,6 +33,8 @@ import { OllamaBudgetService } from './services/ollama-budget.service';
     OllamaImpactReportService,
     BudgetAnalysisService,
     OllamaBudgetService,
+    PortfolioAnalysisService,
+    OpenRouterPortfolioService,
   ],
   exports: [PlanningAnalysisService],
 })
