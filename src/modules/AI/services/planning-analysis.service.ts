@@ -3,9 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma, ProjectStatus, ProjectType } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
-import { OllamaPlanningService } from './ollama-planning.service';
-import { ProjectStatus, ProjectType } from '@prisma/client';
+import { OpenRouterPlanningService } from './ollama-planning.service';
 
 type CurrentUser = {
   id: number;
@@ -17,7 +17,7 @@ type CurrentUser = {
 export class PlanningAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ollamaPlanningService: OllamaPlanningService,
+    private readonly openRouterPlanningService: OpenRouterPlanningService,
   ) {}
 
   private calculateDurationDays(startDate: Date | null, endDate: Date | null) {
@@ -332,6 +332,26 @@ export class PlanningAnalysisService {
     }));
   }
 
+  async getPlanningAnalysisHistoryForAI(projectId: number) {
+    const analyses = await this.prisma.planningAIAnalysis.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 5,
+    });
+
+    return analyses.map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      provider: item.provider,
+      model: item.model,
+      analysis: item.analysis,
+    }));
+  }
+
   async analyzeProjectPlanning(projectId: number, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException('Utilisateur sans tenant.');
@@ -346,25 +366,28 @@ export class PlanningAnalysisService {
       throw new NotFoundException('Projet introuvable.');
     }
 
-    const historicalProjects = await this.getHistoricalProjectsForAI(
-      projectId,
-      user.tenantId,
-      selectedProject.type,
-    );
+    const [historicalProjects, planningAnalysisHistory] = await Promise.all([
+      this.getHistoricalProjectsForAI(
+        projectId,
+        user.tenantId,
+        selectedProject.type,
+      ),
+      this.getPlanningAnalysisHistoryForAI(projectId),
+    ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const analysis = await this.ollamaPlanningService.analyzePlanning({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const analysis = (await this.openRouterPlanningService.analyzePlanning({
       selectedProject,
       historicalProjects,
-    });
+      planningAnalysisHistory,
+    })) as Prisma.InputJsonValue;
 
     return this.prisma.planningAIAnalysis.create({
       data: {
         projectId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         analysis,
-        provider: 'ollama',
-        model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        provider: 'openrouter',
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super:free',
       },
     });
   }

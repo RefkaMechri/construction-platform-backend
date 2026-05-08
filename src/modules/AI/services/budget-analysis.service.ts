@@ -3,8 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma, ProjectStatus, ProjectType } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
-import { OllamaBudgetService } from './ollama-budget.service';
+import { OpenRouterBudgetService } from './ollama-budget.service';
 
 type CurrentUser = {
   id: number;
@@ -16,7 +17,7 @@ type CurrentUser = {
 export class BudgetAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ollamaBudgetService: OllamaBudgetService,
+    private readonly openRouterBudgetService: OpenRouterBudgetService,
   ) {}
 
   async getBudgetForAI(
@@ -66,6 +67,9 @@ export class BudgetAnalysisService {
         status: project.status,
         startDate: project.startDate,
         endDate: project.endDate,
+        siteArea: project.siteArea,
+        builtArea: project.builtArea,
+        floorsCount: project.floorsCount,
       },
       budget: {
         id: project.budgetDetails.id,
@@ -93,45 +97,165 @@ export class BudgetAnalysisService {
     };
   }
 
+  async getHistoricalBudgetsForAI(
+    currentProjectId: number,
+    tenantId: number,
+    projectType: ProjectType,
+  ) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        tenantId,
+        id: {
+          not: currentProjectId,
+        },
+        status: ProjectStatus.TERMINE,
+        type: projectType,
+        budgetDetails: {
+          isNot: null,
+        },
+      },
+      take: 5,
+      orderBy: {
+        endDate: 'desc',
+      },
+      include: {
+        budgetDetails: {
+          include: {
+            items: {
+              orderBy: {
+                category: 'asc',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return projects
+      .filter((project) => project.budgetDetails)
+      .map((project) => {
+        const directCostsTotal = Number(
+          project.budgetDetails?.directCostsTotal ?? 0,
+        );
+        const indirectCostsTotal = Number(
+          project.budgetDetails?.indirectCostsTotal ?? 0,
+        );
+        const contingencyRate = Number(
+          project.budgetDetails?.contingencyRate ?? 0,
+        );
+        const contingencyUsed = Number(
+          project.budgetDetails?.contingencyUsed ?? 0,
+        );
+        const totalBudget = Number(project.budgetDetails?.totalBudget ?? 0);
+
+        const contingencyAmount =
+          ((directCostsTotal + indirectCostsTotal) * contingencyRate) / 100;
+
+        return {
+          project: {
+            id: project.id,
+            name: project.name,
+            code: project.code,
+            type: project.type,
+            status: project.status,
+            siteArea: project.siteArea,
+            builtArea: project.builtArea,
+            floorsCount: project.floorsCount,
+            startDate: project.startDate,
+            endDate: project.endDate,
+          },
+          budget: {
+            id: project.budgetDetails?.id,
+            directCostsTotal,
+            indirectCostsTotal,
+            contingencyRate,
+            contingencyAmount,
+            contingencyUsed,
+            remainingContingency: contingencyAmount - contingencyUsed,
+            totalBudget,
+            calculatedBudgetWithoutContingency:
+              directCostsTotal + indirectCostsTotal,
+            calculatedBudgetWithContingency:
+              directCostsTotal + indirectCostsTotal + contingencyAmount,
+            indirectItems: project.budgetDetails?.items.map((item) => ({
+              id: item.id,
+              category: item.category,
+              label: item.label,
+              amount: Number(item.amount),
+              notes: item.notes,
+            })),
+          },
+        };
+      });
+  }
+
+  async getBudgetAnalysisHistoryForAI(projectId: number) {
+    const analyses = await this.prisma.budgetAIAnalysis.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 5,
+    });
+
+    return analyses.map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      provider: item.provider,
+      model: item.model,
+      analysis: item.analysis,
+    }));
+  }
+
   async analyzeProjectBudget(projectId: number, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException('Utilisateur sans tenant.');
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const budget = await this.getBudgetForAI(projectId, user.tenantId);
+    const budgetData = await this.getBudgetForAI(projectId, user.tenantId);
 
-    if (!budget) {
+    if (!budgetData) {
       throw new NotFoundException('Budget du projet introuvable.');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const analysis = await this.ollamaBudgetService.analyzeBudget(budget);
+    const [historicalBudgets, budgetAnalysisHistory] = await Promise.all([
+      this.getHistoricalBudgetsForAI(
+        projectId,
+        user.tenantId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+        budgetData.project.type,
+      ),
+      this.getBudgetAnalysisHistoryForAI(projectId),
+    ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const analysis = (await this.openRouterBudgetService.analyzeBudget({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      budgetData,
+      historicalBudgets,
+      budgetAnalysisHistory,
+    })) as Prisma.InputJsonValue;
+
     return this.prisma.budgetAIAnalysis.create({
       data: {
         projectId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         analysis,
-        provider: 'ollama',
-        model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        provider: 'openrouter',
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super:free',
       },
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getLatestAnalysis(projectId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.budgetAIAnalysis.findFirst({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getAnalysisHistory(projectId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.budgetAIAnalysis.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },

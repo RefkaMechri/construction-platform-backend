@@ -8,7 +8,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
-import { PortfolioAnalysisService } from '../services/portfolio1-analysis.service';
+import { PortfolioAnalysisService } from '../services/portfolio-analysis.service';
 
 @Controller('portfolio-analysis')
 export class PortfolioAnalysisController {
