@@ -1,9 +1,23 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
-export class OllamaBudgetService {
-  private extractJson(text: string) {
+export class OpenRouterBudgetService {
+  private readonly openRouterUrl =
+    'https://openrouter.ai/api/v1/chat/completions';
+
+  private readonly primaryModel =
+    process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super:free';
+
+  private readonly fallbackModel =
+    process.env.OPENROUTER_FALLBACK_MODEL || 'openai/gpt-oss-120b:free';
+
+  private readonly secondFallbackModel =
+    process.env.OPENROUTER_SECOND_FALLBACK_MODEL || 'openrouter/free';
+
+  private extractJson(text: string): string {
     const cleaned = text
       .replace(/```json/g, '')
       .replace(/```/g, '')
@@ -12,77 +26,154 @@ export class OllamaBudgetService {
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
 
-    if (firstBrace === -1 || lastBrace === -1) {
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
       throw new Error('Aucun JSON trouvé');
     }
 
     return cleaned.substring(firstBrace, lastBrace + 1);
   }
 
-  private buildCompactBudget(budget: any) {
+  private safeParseJson(text: string): unknown {
+    return JSON.parse(this.extractJson(text));
+  }
+
+  private buildCompactBudget(data: any) {
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      project: budget.project,
+      project: data.budgetData?.project ?? data.project,
       budget: {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        id: budget.budget?.id,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        directCostsTotal: budget.budget?.directCostsTotal,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        indirectCostsTotal: budget.budget?.indirectCostsTotal,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        contingencyRate: budget.budget?.contingencyRate,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        contingencyAmount: budget.budget?.contingencyAmount,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        contingencyUsed: budget.budget?.contingencyUsed,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        remainingContingency: budget.budget?.remainingContingency,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        totalBudget: budget.budget?.totalBudget,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        id: data.budgetData?.budget?.id ?? data.budget?.id,
+        directCostsTotal:
+          data.budgetData?.budget?.directCostsTotal ??
+          data.budget?.directCostsTotal,
+        indirectCostsTotal:
+          data.budgetData?.budget?.indirectCostsTotal ??
+          data.budget?.indirectCostsTotal,
+        contingencyRate:
+          data.budgetData?.budget?.contingencyRate ??
+          data.budget?.contingencyRate,
+        contingencyAmount:
+          data.budgetData?.budget?.contingencyAmount ??
+          data.budget?.contingencyAmount,
+        contingencyUsed:
+          data.budgetData?.budget?.contingencyUsed ??
+          data.budget?.contingencyUsed,
+        remainingContingency:
+          data.budgetData?.budget?.remainingContingency ??
+          data.budget?.remainingContingency,
+        totalBudget:
+          data.budgetData?.budget?.totalBudget ?? data.budget?.totalBudget,
         calculatedBudgetWithoutContingency:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          budget.budget?.calculatedBudgetWithoutContingency,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data.budgetData?.budget?.calculatedBudgetWithoutContingency ??
+          data.budget?.calculatedBudgetWithoutContingency,
         calculatedBudgetWithContingency:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          budget.budget?.calculatedBudgetWithContingency,
+          data.budgetData?.budget?.calculatedBudgetWithContingency ??
+          data.budget?.calculatedBudgetWithContingency,
         gapWithProjectDeclaredBudget:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          budget.budget?.gapWithProjectDeclaredBudget,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        indirectItems: budget.budget?.indirectItems,
+          data.budgetData?.budget?.gapWithProjectDeclaredBudget ??
+          data.budget?.gapWithProjectDeclaredBudget,
+        indirectItems:
+          data.budgetData?.budget?.indirectItems ?? data.budget?.indirectItems,
       },
+      budgetAnalysisHistory: data.budgetAnalysisHistory ?? [],
     };
   }
 
-  async analyzeBudget(budget: unknown) {
-    const compactBudget = this.buildCompactBudget(budget);
+  private buildPrompt(data: unknown): string {
+    const compactData = this.buildCompactBudget(data);
 
-    const prompt = `
-Tu es un expert senior en estimation budgétaire de projets de construction en Tunisie.
+    return `
+Tu es un expert senior en estimation budgétaire, contrôle des coûts et analyse financière de projets de construction en Tunisie.
 
-Analyse uniquement le budget fourni.
-Réponds uniquement en JSON valide.
-Ne laisse jamais un champ texte vide.
-Ne recopie pas les données : interprète les chiffres.
-Ne génère pas une longue liste. Analyse seulement les postes les plus importants.
+Objectif :
+Analyser uniquement le budget du projet fourni et produire une analyse financière claire, précise et actionnable.
 
-Budget :
-${JSON.stringify(compactBudget, null, 2)}
+Données disponibles :
+- project : informations du projet.
+- budget : budget actuel du projet.
+- budgetAnalysisHistory : anciennes analyses IA du budget du même projet.
 
-Règles obligatoires :
-- Chaque champ texte doit contenir une vraie analyse.
-- Chaque recommandation doit contenir une action concrète.
-- Utilise les montants DT et les pourcentages.
+Utilisation des données :
+- Analyse uniquement le budget actuel.
+- Utilise budgetAnalysisHistory uniquement pour détecter les risques répétés, corrigés ou aggravés.
+- Ne considère jamais budgetAnalysisHistory comme budget actuel.
+- Ne recopie jamais une ancienne analyse sans vérifier avec les chiffres actuels.
+- Si budgetAnalysisHistory est vide, ignore l'historique.
+
+Règles strictes :
+- Réponds uniquement en JSON valide.
+- Aucun markdown.
+- Aucun texte avant ou après JSON.
+- Ne laisse jamais un champ texte vide.
+- Ne recopie pas les données : interprète les chiffres.
+- Utilise les montants en DT.
+- Utilise les pourcentages quand c'est pertinent.
 - Analyse selon le type du projet.
-- Si le budget déclaré et le budget total sont différents, explique l’écart.
-- Si la contingence est insuffisante ou élevée, explique pourquoi.
-- Analyse seulement les 3 postes indirects les plus importants.
+- Ne génère pas une longue liste.
+- Analyse seulement les postes les plus importants.
 - Donne maximum 3 constats critiques.
 - Donne maximum 3 recommandations finales.
 - Termine toujours le JSON complètement.
+
+Méthode d'analyse obligatoire :
+1. Vérifier la cohérence globale du budget :
+   - coûts directs ;
+   - coûts indirects ;
+   - contingence ;
+   - budget total ;
+   - écart éventuel avec le budget déclaré.
+
+2. Analyser la structure des coûts :
+   - part des coûts directs ;
+   - part des coûts indirects ;
+   - part de la contingence ;
+   - cohérence avec un projet BTP en Tunisie.
+
+3. Analyser la contingence :
+   - taux de contingence ;
+   - montant total de contingence ;
+   - contingence déjà utilisée ;
+   - contingence restante ;
+   - risque si la contingence restante est faible.
+
+4. Analyser les postes indirects :
+   - identifier les 3 postes indirects les plus importants ;
+   - expliquer leur poids financier ;
+   - signaler les postes anormalement élevés ou faibles.
+
+5. Comparer avec budgetAnalysisHistory :
+   - identifier les risques déjà signalés avant ;
+   - dire s'ils sont toujours présents, améliorés ou aggravés ;
+   - ne pas utiliser un ancien risque s'il n'est pas confirmé par les chiffres actuels.
+
+6. Produire des recommandations concrètes :
+   - ajuster la contingence ;
+   - revoir un poste indirect ;
+   - contrôler un coût direct ;
+   - valider l'écart budgétaire ;
+   - demander une justification financière ;
+   - bloquer ou réviser le budget si le risque est élevé.
+
+Règles de risque :
+- riskPercent doit être entre 0 et 100.
+- 0 à 30 = low.
+- 31 à 65 = medium.
+- 66 à 100 = high.
+- riskLevel doit correspondre à riskPercent.
+- Ne donne jamais 100 sauf si le budget est gravement incohérent.
+- Ne donne jamais 0 si une donnée importante est manquante ou incohérente.
+- Si la contingence restante est négative, le risque doit être au moins medium.
+- Si les coûts indirects sont très élevés par rapport au budget total, le risque doit augmenter.
+- Si le budget total est cohérent et la contingence suffisante, le risque doit rester low ou medium.
+
+Règles pour les statuts :
+- "balanced" si le budget semble cohérent.
+- "underestimated" si le budget semble insuffisant.
+- "overestimated" si certains postes semblent trop élevés.
+- "risky" si le budget contient des incohérences ou une contingence faible.
+- "insufficient_data" si les données ne permettent pas une analyse fiable.
+
+Budget à analyser :
+${JSON.stringify(compactData, null, 2)}
 
 Structure JSON obligatoire :
 {
@@ -114,12 +205,31 @@ Structure JSON obligatoire :
     "reason": "",
     "recommendation": ""
   },
+  "contingencyAnalysis": {
+    "contingencyRate": 0,
+    "contingencyAmount": 0,
+    "contingencyUsed": 0,
+    "remainingContingency": 0,
+    "usedContingencyPercent": 0,
+    "riskLevel": "low | medium | high",
+    "analysis": "",
+    "recommendation": ""
+  },
   "projectTypeAnalysis": {
     "projectType": "",
     "analysis": "",
     "specificRisk": "",
     "recommendation": ""
   },
+  "previousAnalysisInsights": [
+    {
+      "previousAnalysisId": 0,
+      "createdAt": "",
+      "repeatedRisk": "",
+      "currentStatus": "still_present | improved | worsened | not_verifiable",
+      "evidence": ""
+    }
+  ],
   "criticalFindings": [
     {
       "title": "",
@@ -151,70 +261,130 @@ Structure JSON obligatoire :
   ]
 }
 `;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300000);
+  }
+
+  private async callOpenRouter(model: string, prompt: string): Promise<string> {
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new InternalServerErrorException(
+        'OPENROUTER_API_KEY manquant dans .env',
+      );
+    }
+
+    const response = await fetch(this.openRouterUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer':
+          process.env.OPENROUTER_SITE_URL || 'http://localhost:3000',
+        'X-Title': process.env.OPENROUTER_APP_NAME || 'Construction AI',
+      },
+      signal: AbortSignal.timeout(300000),
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Tu réponds uniquement en JSON valide. Aucun markdown. Aucun texte hors JSON.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 5000,
+      }),
+    });
+
+    const rawText = await response.text();
+
+    if (!response.ok) {
+      console.error(`Erreur OpenRouter HTTP ${response.status}:`, rawText);
+
+      throw new Error(
+        `Erreur OpenRouter HTTP ${response.status} avec modèle ${model}`,
+      );
+    }
+
+    let data: {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+        finish_reason?: string;
+      }>;
+      error?: {
+        message?: string;
+      };
+    };
 
     try {
-      const response = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: process.env.OLLAMA_MODEL || 'llama3.2:3b',
-          prompt,
-          stream: false,
-          format: {
-            type: 'object',
-          },
-          keep_alive: '10m',
-          options: {
-            temperature: 0.2,
-            num_predict: 2000,
-            num_ctx: 4096,
-            num_thread: 4,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erreur HTTP Ollama:', errorText);
-        throw new InternalServerErrorException('Erreur appel Ollama.');
-      }
-
-      const data = await response.json();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const rawText = data.response;
-
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return JSON.parse(this.extractJson(rawText));
-      } catch (parseError) {
-        console.error('JSON Ollama invalide:', rawText);
-        console.error('Erreur parsing JSON:', parseError);
-
-        throw new InternalServerErrorException(
-          'Ollama a retourné un JSON invalide.',
-        );
-      }
-    } catch (error) {
-      console.error('Erreur Ollama:', error);
-
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new InternalServerErrorException(
-          'Ollama a dépassé le délai maximum.',
-        );
-      }
-
-      if (error instanceof InternalServerErrorException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException(
-        'Erreur pendant l’analyse du budget avec Ollama.',
-      );
-    } finally {
-      clearTimeout(timeout);
+      data = JSON.parse(rawText);
+    } catch {
+      console.error('Réponse OpenRouter non JSON:', rawText);
+      throw new Error(`Réponse OpenRouter non JSON avec modèle ${model}`);
     }
+
+    if (data.error) {
+      console.error(`Erreur OpenRouter modèle ${model}:`, data.error);
+      throw new Error(data.error.message || 'Erreur OpenRouter inconnue');
+    }
+
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      console.error(`Réponse OpenRouter vide avec modèle ${model}:`, data);
+      throw new Error(`Réponse vide OpenRouter avec modèle ${model}`);
+    }
+
+    return content;
+  }
+
+  async analyzeBudget(data: unknown) {
+    const prompt = this.buildPrompt(data);
+
+    const models = [
+      this.primaryModel,
+      this.fallbackModel,
+      this.secondFallbackModel,
+    ];
+
+    let lastError: unknown = null;
+
+    for (const model of models) {
+      try {
+        const response = await this.callOpenRouter(model, prompt);
+
+        const parsed = this.safeParseJson(response) as {
+          summary?: unknown;
+          budgetDiagnosis?: unknown;
+          costStructureAnalysis?: unknown;
+        };
+
+        if (
+          !parsed.summary ||
+          !parsed.budgetDiagnosis ||
+          !parsed.costStructureAnalysis
+        ) {
+          throw new Error('Structure IA invalide pour analyse budget');
+        }
+
+        return parsed;
+      } catch (error) {
+        lastError = error;
+        console.error(`Erreur analyse budget avec modèle ${model}:`, error);
+      }
+    }
+
+    console.error(
+      'Toutes les tentatives OpenRouter budget ont échoué:',
+      lastError,
+    );
+
+    throw new InternalServerErrorException(
+      'Analyse budget IA échouée : tous les modèles OpenRouter ont échoué ou ont retourné un JSON invalide.',
+    );
   }
 }

@@ -4,15 +4,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ProjectStatus, ProjectType } from '@prisma/client';
+import { Prisma, ProjectStatus, ProjectType } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
-import { OllamaResourceService } from './ollama-resource.service';
+import { OpenRouterResourceService } from './ollama-resource.service';
 
 @Injectable()
 export class ResourceAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ai: OllamaResourceService,
+    private readonly ai: OpenRouterResourceService,
   ) {}
 
   private chunkArray<T>(items: T[], size: number): T[][] {
@@ -247,12 +247,34 @@ export class ResourceAnalysisService {
     }));
   }
 
+  async getResourceAnalysisHistoryForAI(projectId: number) {
+    const analyses = await this.prisma.resourceAIAnalysis.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 5,
+    });
+
+    return analyses.map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      provider: item.provider,
+      model: item.model,
+      analysis: item.analysis,
+    }));
+  }
+
   private groupEmployeesByProfile(assignments: any[]) {
     const result = new Map<string, number>();
 
     for (const assignment of assignments) {
       const profile =
         assignment.employee?.jobTitle ||
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        assignment.employee?.skills?.join?.(', ') ||
         assignment.employee?.skills ||
         'Profil non défini';
 
@@ -387,7 +409,7 @@ export class ResourceAnalysisService {
       historicalReferenceUsed,
       tasksAnalysis,
       priorityActions,
-    };
+    } satisfies Prisma.InputJsonObject;
   }
 
   async analyze(projectId: number, tenantId: number) {
@@ -397,17 +419,16 @@ export class ResourceAnalysisService {
       throw new NotFoundException('Projet introuvable');
     }
 
-    const historicalProjects = await this.getHistoricalProjectsForAI(
-      projectId,
-      tenantId,
-      project.type,
-    );
+    const [historicalProjects, resourceAnalysisHistory] = await Promise.all([
+      this.getHistoricalProjectsForAI(projectId, tenantId, project.type),
+      this.getResourceAnalysisHistoryForAI(projectId),
+    ]);
 
     const allTasks = this.flattenTasks(project);
 
     /**
+     * 1 = analyse plus précise tâche par tâche.
      * Tu peux mettre 2 ou 3 si ton modèle supporte bien le contexte.
-     * 1 = plus précis mais plus lent.
      */
     const taskChunks = this.chunkArray(allTasks, 1);
 
@@ -427,6 +448,7 @@ export class ResourceAnalysisService {
           tasks: chunk,
         },
         historicalProjects,
+        resourceAnalysisHistory,
       });
 
       analyses.push(chunkAnalysis);
@@ -438,8 +460,8 @@ export class ResourceAnalysisService {
       data: {
         projectId,
         analysis: finalAnalysis,
-        provider: 'ollama',
-        model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        provider: 'openrouter',
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super:free',
       },
     });
   }

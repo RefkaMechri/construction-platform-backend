@@ -7,9 +7,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ProjectStatus } from '@prisma/client';
+import { Prisma, ProjectStatus } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
-import { OllamaPortfolioService } from './ollama-portfolio.service';
+import { OpenRouterPortfolioService } from './openrouter-portfolio.service';
 
 type CurrentUser = {
   id: number;
@@ -21,7 +21,7 @@ type CurrentUser = {
 export class PortfolioAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ai: OllamaPortfolioService,
+    private readonly ai: OpenRouterPortfolioService,
   ) {}
 
   private readonly activeProjectStatuses: ProjectStatus[] = [
@@ -570,32 +570,30 @@ export class PortfolioAnalysisService {
       this.getAvailableEquipmentForAI(user.tenantId),
     ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const analysis = await this.ai.analyzePortfolio({
+    const analysis = (await this.ai.analyzePortfolio({
       currentProjects,
       historicalProjects,
       availableEmployees,
       availableEquipment,
       objective:
         'Prioriser les affectations et réaffectations des employés et équipements entre les projets EN_COURS afin de réduire le risque global.',
-    });
+    })) as Prisma.InputJsonValue;
 
     const result = {
-      generatedAt: new Date(),
+      generatedAt: new Date().toISOString(),
       currentProjectsCount: currentProjects.length,
       historicalProjectsCount: historicalProjects.length,
       availableEmployeesCount: availableEmployees.length,
       availableEquipmentCount: availableEquipment.length,
       analysis,
-    };
+    } satisfies Prisma.InputJsonObject;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     return this.prisma.portfolioAIAnalysis.create({
       data: {
         tenantId: user.tenantId,
         analysis: result,
-        provider: 'ollama',
-        model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        provider: 'openrouter',
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super:free',
       },
     });
   }

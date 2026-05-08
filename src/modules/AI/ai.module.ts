@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { AiPlanningController } from './controllers/ai.controller';
-import { OllamaPlanningService } from './services/ollama-planning.service';
+import { OpenRouterPlanningService } from './services/ollama-planning.service';
 import { PlanningAnalysisService } from './services/planning-analysis.service';
-import { OllamaResourceService } from './services/ollama-resource.service';
+import { OpenRouterResourceService } from './services/ollama-resource.service';
 import { ResourceAnalysisService } from './services/ressource-analysis.service';
 import { AiResourceController } from './controllers/ai-resource.controller';
 import { AiPlanningImpactController } from './controllers/ai-planning-impact.controller';
 import { PlanningImpactSimulationService } from './services/planning-impact-simulation.service';
-import { OllamaImpactReportService } from './services/ollama-impact-report.service';
+import { OpenRouterImpactReportService } from './services/ollama-impact-report.service';
 import { AiBudgetController } from './controllers/ai-budget.controller';
 import { BudgetAnalysisService } from './services/budget-analysis.service';
-import { OllamaBudgetService } from './services/ollama-budget.service';
+import { OpenRouterBudgetService } from './services/ollama-budget.service';
 import { PortfolioAnalysisController } from './controllers/portfolio-analysis.controller';
-import { PortfolioAnalysisService } from './services/portfolio1-analysis.service';
+import { PortfolioAnalysisService } from './services/portfolio-analysis.service';
 import { OpenRouterPortfolioService } from './services/openrouter-portfolio.service';
 @Module({
   controllers: [
@@ -26,13 +26,13 @@ import { OpenRouterPortfolioService } from './services/openrouter-portfolio.serv
   providers: [
     PrismaService,
     PlanningAnalysisService,
-    OllamaPlanningService,
+    OpenRouterPlanningService,
     ResourceAnalysisService,
-    OllamaResourceService,
+    OpenRouterResourceService,
     PlanningImpactSimulationService,
-    OllamaImpactReportService,
+    OpenRouterImpactReportService,
     BudgetAnalysisService,
-    OllamaBudgetService,
+    OpenRouterBudgetService,
     PortfolioAnalysisService,
     OpenRouterPortfolioService,
   ],
