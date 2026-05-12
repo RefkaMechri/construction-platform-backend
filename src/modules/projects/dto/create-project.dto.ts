@@ -61,4 +61,8 @@ export class CreateProjectDto {
   @IsInt()
   @IsPositive()
   floorsCount?: number;
+
+  @IsNotEmpty()
+  @IsInt()
+  siteManagerId!: number;
 }
