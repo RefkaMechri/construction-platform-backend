@@ -7,7 +7,33 @@ export class ProjectsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: Prisma.ProjectCreateInput): Promise<Project> {
-    return this.prisma.project.create({ data });
+    const project = await this.prisma.project.create({
+      data,
+      include: {
+        budgetDetails: {
+          select: {
+            totalBudget: true,
+          },
+        },
+        projectManager: {
+          select: {
+            name: true,
+          },
+        },
+        siteManager: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...project,
+      projectManager: project.projectManager?.name ?? '',
+      siteManager: project.siteManager?.name ?? '',
+      totalBudget: project.budgetDetails?.totalBudget ?? 0,
+    } as Project;
   }
 
   async findAllByTenant(tenantId: number): Promise<Project[]> {
@@ -25,20 +51,52 @@ export class ProjectsRepository {
             name: true,
           },
         },
+        siteManager: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
     return projects.map((project) => ({
       ...project,
       projectManager: project.projectManager?.name ?? '',
+      siteManager: project.siteManager?.name ?? '',
       totalBudget: project.budgetDetails?.totalBudget ?? 0,
     })) as Project[];
   }
 
   async findById(id: number): Promise<Project | null> {
-    return this.prisma.project.findUnique({
+    const project = await this.prisma.project.findUnique({
       where: { id },
+      include: {
+        budgetDetails: {
+          select: {
+            totalBudget: true,
+          },
+        },
+        projectManager: {
+          select: {
+            name: true,
+          },
+        },
+        siteManager: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
+
+    if (!project) return null;
+
+    return {
+      ...project,
+      projectManager: project.projectManager?.name ?? '',
+      siteManager: project.siteManager?.name ?? '',
+      totalBudget: project.budgetDetails?.totalBudget ?? 0,
+    } as Project;
   }
 
   async findByIdAndTenant(id: number, tenantId: number) {
@@ -46,6 +104,12 @@ export class ProjectsRepository {
       where: { id, tenantId },
       include: {
         projectManager: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        siteManager: {
           select: {
             id: true,
             name: true,
@@ -67,10 +131,34 @@ export class ProjectsRepository {
   }
 
   async update(id: number, data: Prisma.ProjectUpdateInput): Promise<Project> {
-    return this.prisma.project.update({
+    const project = await this.prisma.project.update({
       where: { id },
       data,
+      include: {
+        budgetDetails: {
+          select: {
+            totalBudget: true,
+          },
+        },
+        projectManager: {
+          select: {
+            name: true,
+          },
+        },
+        siteManager: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
+
+    return {
+      ...project,
+      projectManager: project.projectManager?.name ?? '',
+      siteManager: project.siteManager?.name ?? '',
+      totalBudget: project.budgetDetails?.totalBudget ?? 0,
+    } as Project;
   }
 
   async delete(id: number): Promise<Project> {

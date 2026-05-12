@@ -289,4 +289,25 @@ export class UsersService {
       tenantName: user.tenant?.name ?? 'Plateforme',
     }));
   }
+  async findSiteManagersByTenant(tenantId: number) {
+    if (!tenantId) {
+      throw new BadRequestException('Tenant introuvable.');
+    }
+
+    return this.prisma.user.findMany({
+      where: {
+        tenantId,
+        role: 'CONDUCTEUR_DE_TRAVAUX',
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  }
 }

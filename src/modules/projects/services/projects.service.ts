@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
@@ -24,14 +25,17 @@ export class ProjectsService {
   }
 
   private validateProjectSurface(
-    siteArea?: number,
-    builtArea?: number,
-    floorsCount?: number,
+    siteArea?: number | null,
+    builtArea?: number | null,
+    floorsCount?: number | null,
   ) {
     if (
       siteArea !== undefined &&
+      siteArea !== null &&
       builtArea !== undefined &&
+      builtArea !== null &&
       floorsCount !== undefined &&
+      floorsCount !== null &&
       builtArea > siteArea * floorsCount
     ) {
       throw new BadRequestException(
@@ -43,6 +47,10 @@ export class ProjectsService {
   async create(createProjectDto: CreateProjectDto, user: CurrentUser) {
     if (!user.tenantId) {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
+    }
+
+    if (!createProjectDto.siteManagerId) {
+      throw new BadRequestException('Le responsable chantier est obligatoire.');
     }
 
     const startDate = new Date(createProjectDto.startDate);
@@ -77,15 +85,22 @@ export class ProjectsService {
       endDate,
       baselineStartDate: startDate,
       baselineEndDate: endDate,
+
       budget: createProjectDto.budget,
       type: createProjectDto.type,
       description: createProjectDto.description,
       status: createProjectDto.status ?? ProjectStatus.BROUILLON,
+
       tenant: {
         connect: { id: user.tenantId },
       },
+
       projectManager: {
         connect: { id: user.id },
+      },
+
+      siteManager: {
+        connect: { id: createProjectDto.siteManagerId },
       },
     });
   }
@@ -115,6 +130,7 @@ export class ProjectsService {
     return {
       ...project,
       projectManagerName: project.projectManager?.name,
+      siteManagerName: project.siteManager?.name,
       totalBudget: project.budgetDetails?.totalBudget ?? 0,
     };
   }
@@ -128,57 +144,74 @@ export class ProjectsService {
 
     const data: any = {};
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (updateProjectDto.name !== undefined) data.name = updateProjectDto.name;
+    if (updateProjectDto.name !== undefined) {
+      data.name = updateProjectDto.name;
+    }
 
-    if (updateProjectDto.client !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.client !== undefined) {
       data.client = updateProjectDto.client;
+    }
 
-    if (updateProjectDto.address !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.address !== undefined) {
       data.address = updateProjectDto.address;
+    }
 
-    if (updateProjectDto.siteArea !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.siteArea !== undefined) {
       data.siteArea = updateProjectDto.siteArea;
+    }
 
-    if (updateProjectDto.builtArea !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.builtArea !== undefined) {
       data.builtArea = updateProjectDto.builtArea;
+    }
 
-    if (updateProjectDto.floorsCount !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.floorsCount !== undefined) {
       data.floorsCount = updateProjectDto.floorsCount;
+    }
 
-    if (updateProjectDto.description !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.description !== undefined) {
       data.description = updateProjectDto.description;
+    }
 
-    if (updateProjectDto.status !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.status !== undefined) {
       data.status = updateProjectDto.status;
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (updateProjectDto.type !== undefined) data.type = updateProjectDto.type;
+    if (updateProjectDto.type !== undefined) {
+      data.type = updateProjectDto.type;
+    }
 
-    if (updateProjectDto.budget !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.budget !== undefined) {
       data.budget = updateProjectDto.budget;
+    }
 
-    if (updateProjectDto.startDate !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.baselineStartDate = new Date(updateProjectDto.startDate);
+    if (updateProjectDto.startDate !== undefined) {
+      const startDate = new Date(updateProjectDto.startDate);
 
-    if (updateProjectDto.endDate !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.baselineEndDate = new Date(updateProjectDto.endDate);
+      data.startDate = startDate;
+      data.baselineStartDate = startDate;
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (updateProjectDto.endDate !== undefined) {
+      const endDate = new Date(updateProjectDto.endDate);
+
+      data.endDate = endDate;
+      data.baselineEndDate = endDate;
+    }
+
+    if (updateProjectDto.siteManagerId !== undefined) {
+      if (!updateProjectDto.siteManagerId) {
+        throw new BadRequestException(
+          'Le responsable chantier est obligatoire.',
+        );
+      }
+
+      data.siteManager = {
+        connect: { id: updateProjectDto.siteManagerId },
+      };
+    }
+
     const finalSiteArea = data.siteArea ?? project.siteArea;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const finalBuiltArea = data.builtArea ?? project.builtArea;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const finalFloorsCount = data.floorsCount ?? project.floorsCount;
 
     this.validateProjectSurface(
@@ -187,14 +220,10 @@ export class ProjectsService {
       finalFloorsCount,
     );
 
-    if (
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.baselineStartDate &&
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.baselineEndDate &&
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.baselineEndDate < data.baselineStartDate
-    ) {
+    const finalStartDate = data.startDate ?? project.startDate;
+    const finalEndDate = data.endDate ?? project.endDate;
+
+    if (finalStartDate && finalEndDate && finalEndDate < finalStartDate) {
       throw new BadRequestException(
         'La date de fin doit être supérieure ou égale à la date de début.',
       );

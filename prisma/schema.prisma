@@ -28,6 +28,8 @@ model User {
   resetPasswordTokenHash   String?
   resetPasswordExpiresAt   DateTime?
   projects  Project[]
+  // Projets où l'utilisateur est responsable chantier
+  siteProjects Project[] @relation("SiteManager")
   equipments Equipment[] 
   materieaux  Material[] @relation("MaterialCreatedBy")
   createdEmployees Employee[] @relation("EmployeeCreatedBy")
@@ -160,6 +162,10 @@ model Project {
   // Le créateur = chef de projet
   projectManagerId Int
   projectManager   User          @relation(fields: [projectManagerId], references: [id])
+
+  // Le responsable chantier = conducteur de traveaux
+  siteManagerId Int ?
+  siteManager     User ?           @relation("SiteManager", fields: [siteManagerId], references: [id])
 
   tenantId         Int
   tenant           Tenant        @relation(fields: [tenantId], references: [id])
