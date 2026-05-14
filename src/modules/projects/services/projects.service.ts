@@ -2,10 +2,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PhaseStatus, ProjectStatus } from '@prisma/client';
+import { PhaseStatus, ProjectStatus, TaskStatus } from '@prisma/client';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ProjectsRepository } from '../repositories/projects.repository';
@@ -270,5 +271,78 @@ export class ProjectsService {
         status: ProjectStatus.EN_COURS,
       });
     }
+  }
+  /**site manager */
+  async getAssignedProjects(currentUser: any) {
+    this.ensureSiteManager(currentUser);
+
+    const projects = await this.projectsRepository.findAssignedProjects(
+      Number(currentUser.id),
+    );
+
+    return projects.map((project) => ({
+      ...project,
+      budget: project.budget.toString(),
+    }));
+  }
+
+  async getAssignedProjectById(id: number, user: any) {
+    this.ensureSiteManager(user);
+
+    const project = await this.projectsRepository.findAssignedProjectDetails(
+      id,
+      Number(user.id),
+    );
+
+    if (!project) {
+      throw new NotFoundException(
+        'Projet introuvable ou non assigné à ce conducteur de travaux.',
+      );
+    }
+
+    return {
+      ...project,
+      budget: project.budget.toString(),
+    };
+  }
+
+  private ensureSiteManager(currentUser: any) {
+    if (!currentUser) {
+      throw new ForbiddenException('Utilisateur non authentifié.');
+    }
+  }
+  async updateAssignedProjectTaskStatus(
+    projectId: number,
+    taskId: number,
+    status: TaskStatus,
+    user: any,
+  ) {
+    this.ensureSiteManager(user);
+
+    const task = await this.projectsRepository.findTaskInAssignedProject(
+      projectId,
+      taskId,
+      Number(user.id),
+    );
+
+    if (!task) {
+      throw new NotFoundException(
+        'Tâche introuvable ou non liée à un projet assigné à ce conducteur de travaux.',
+      );
+    }
+
+    const allowedStatuses: TaskStatus[] = [
+      TaskStatus.TODO,
+      TaskStatus.IN_PROGRESS,
+      TaskStatus.DONE,
+      TaskStatus.BLOCKED,
+      TaskStatus.OVERDUE,
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      throw new ForbiddenException('Statut de tâche non autorisé.');
+    }
+
+    return this.projectsRepository.updateTaskStatus(taskId, status);
   }
 }
