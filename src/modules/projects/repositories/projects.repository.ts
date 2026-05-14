@@ -175,4 +175,284 @@ export class ProjectsRepository {
       },
     });
   }
+  /**site manager */
+  async findAssignedProjects(siteManagerId: number) {
+    return this.prisma.project.findMany({
+      where: {
+        siteManagerId,
+        status: 'EN_COURS',
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        client: true,
+        address: true,
+        startDate: true,
+        endDate: true,
+        budget: true,
+        description: true,
+        status: true,
+        type: true,
+        siteArea: true,
+        builtArea: true,
+        floorsCount: true,
+        createdAt: true,
+        updatedAt: true,
+
+        projectManager: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    });
+  }
+
+  async findAssignedProjectById(siteManagerId: number, projectId: number) {
+    return this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        siteManagerId,
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        client: true,
+        address: true,
+        startDate: true,
+        endDate: true,
+        baselineStartDate: true,
+        baselineEndDate: true,
+        budget: true,
+        description: true,
+        status: true,
+        type: true,
+        siteArea: true,
+        builtArea: true,
+        floorsCount: true,
+        createdAt: true,
+        updatedAt: true,
+
+        projectManager: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        phases: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            status: true,
+          },
+          orderBy: {
+            startDate: 'asc',
+          },
+        },
+
+        milestones: {
+          select: {
+            id: true,
+            name: true,
+            dueDate: true,
+            status: true,
+          },
+          orderBy: {
+            dueDate: 'asc',
+          },
+        },
+      },
+    });
+  }
+  async findAssignedProjectDetails(projectId: number, siteManagerId: number) {
+    return this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        siteManagerId,
+        status: 'EN_COURS',
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        client: true,
+        address: true,
+        startDate: true,
+        endDate: true,
+        baselineStartDate: true,
+        baselineEndDate: true,
+        budget: true,
+        description: true,
+        status: true,
+        type: true,
+        siteArea: true,
+        builtArea: true,
+        floorsCount: true,
+        createdAt: true,
+        updatedAt: true,
+
+        projectManager: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        phases: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startDate: true,
+            endDate: true,
+            baselineStartDate: true,
+            baselineEndDate: true,
+            status: true,
+            order: true,
+            createdAt: true,
+            updatedAt: true,
+
+            tasks: {
+              where: {
+                parentTaskId: null,
+              },
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                startDate: true,
+                endDate: true,
+                baselineStartDate: true,
+                baselineEndDate: true,
+                status: true,
+                priority: true,
+                order: true,
+                phaseId: true,
+                parentTaskId: true,
+                milestoneId: true,
+                createdAt: true,
+                updatedAt: true,
+
+                subtasks: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    startDate: true,
+                    endDate: true,
+                    baselineStartDate: true,
+                    baselineEndDate: true,
+                    status: true,
+                    priority: true,
+                    order: true,
+                    phaseId: true,
+                    parentTaskId: true,
+                    milestoneId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                  orderBy: [
+                    { order: 'asc' },
+                    { startDate: 'asc' },
+                    { id: 'asc' },
+                  ],
+                },
+              },
+              orderBy: [{ order: 'asc' }, { startDate: 'asc' }, { id: 'asc' }],
+            },
+          },
+          orderBy: [{ order: 'asc' }, { startDate: 'asc' }, { id: 'asc' }],
+        },
+      },
+    });
+  }
+  async findTaskInAssignedProject(
+    projectId: number,
+    taskId: number,
+    siteManagerId: number,
+  ) {
+    return this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        phase: {
+          project: {
+            id: projectId,
+            siteManagerId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        phaseId: true,
+        phase: {
+          select: {
+            id: true,
+            projectId: true,
+          },
+        },
+      },
+    });
+  }
+  async updateTaskStatus(taskId: number, status: any) {
+    return this.prisma.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        status,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        baselineStartDate: true,
+        baselineEndDate: true,
+        status: true,
+        priority: true,
+        order: true,
+        phaseId: true,
+        parentTaskId: true,
+        milestoneId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
 }
