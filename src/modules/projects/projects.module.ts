@@ -7,9 +7,15 @@ import { AiModule } from '../AI/ai.module';
 import { SiteManagerProjectsController } from './controllers/site-manager-projects.controller';
 import { MaterialAssignmentsModule } from '../Material/material-assignments.module';
 import { TasksModule } from './tasks.module';
+import { NotificationsModule } from '../Notification/notifications.module';
 
 @Module({
-  imports: [AiModule, MaterialAssignmentsModule, forwardRef(() => TasksModule)],
+  imports: [
+    AiModule,
+    MaterialAssignmentsModule,
+    forwardRef(() => TasksModule),
+    NotificationsModule,
+  ],
   controllers: [ProjectsController, SiteManagerProjectsController],
   providers: [ProjectsService, ProjectsRepository, PrismaService],
   exports: [ProjectsService],
