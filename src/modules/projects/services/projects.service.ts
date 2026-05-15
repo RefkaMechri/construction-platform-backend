@@ -10,7 +10,12 @@ import { PhaseStatus, ProjectStatus, TaskStatus } from '@prisma/client';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ProjectsRepository } from '../repositories/projects.repository';
-
+import { NotificationsService } from 'src/modules/Notification/services/notifications.service';
+import { NotificationSeverityEnum } from 'src/modules/Notification/types/notification.types';
+import {
+  NotificationSourceType,
+  NotificationType,
+} from 'src/modules/deadlines/types/deadline-source.type';
 type CurrentUser = {
   id: number;
   tenantId: number | null;
@@ -19,7 +24,10 @@ type CurrentUser = {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly projectsRepository: ProjectsRepository) {}
+  constructor(
+    private readonly projectsRepository: ProjectsRepository,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private generateProjectCode(sequence: number): string {
     return `PRJ-${String(sequence).padStart(3, '0')}`;
@@ -72,7 +80,7 @@ export class ProjectsService {
     const count = await this.projectsRepository.countByTenant(user.tenantId);
     const code = this.generateProjectCode(count + 1);
 
-    return this.projectsRepository.create({
+    const project = await this.projectsRepository.create({
       name: createProjectDto.name,
       code,
       client: createProjectDto.client,
@@ -104,6 +112,18 @@ export class ProjectsService {
         connect: { id: createProjectDto.siteManagerId },
       },
     });
+
+    await this.notificationsService.createIfNotExists({
+      userId: createProjectDto.siteManagerId,
+      type: NotificationType.PROJECT_ASSIGNED_TO_SITE_MANAGER,
+      title: 'Nouveau projet assigné',
+      message: `Vous avez été assigné comme conducteur de travaux au projet "${project.name}".`,
+      severity: NotificationSeverityEnum.INFO,
+      sourceType: NotificationSourceType.PROJECT,
+      sourceId: project.id,
+    });
+
+    return project;
   }
 
   async findAll(user: CurrentUser) {

@@ -18,7 +18,7 @@ export class DeadlinesService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_SECOND)
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDailyChecks() {
     const { tomorrowStart, tomorrowEnd } = this.getTomorrowRange();
 
@@ -27,6 +27,8 @@ export class DeadlinesService {
     await this.checkTasksDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkPhasesDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkProjectsDueTomorrow(tomorrowStart, tomorrowEnd);
+
+    this.logger.log('Vérification quotidienne des deadlines terminée.');
   }
 
   async runNow() {
@@ -57,11 +59,50 @@ export class DeadlinesService {
     return { tomorrowStart, tomorrowEnd };
   }
 
-  /**
-   * 1) Milestone prêt à être validé
-   * Condition :
-   * - milestone  déjà READY_FOR_VALIDATION
-   */
+  private async createProjectManagerNotification(params: {
+    projectManagerId: number;
+    type: NotificationType;
+    title: string;
+    message: string;
+    severity: NotificationSeverityEnum;
+    sourceType: NotificationSourceType;
+    sourceId: number;
+  }) {
+    return this.notificationsService.createIfNotExists({
+      userId: params.projectManagerId,
+      type: params.type,
+      title: params.title,
+      message: params.message,
+      severity: params.severity,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+    });
+  }
+
+  private async createSiteManagerNotification(params: {
+    siteManagerId?: number | null;
+    type: NotificationType;
+    title: string;
+    message: string;
+    severity: NotificationSeverityEnum;
+    sourceType: NotificationSourceType;
+    sourceId: number;
+  }) {
+    if (!params.siteManagerId) {
+      return null;
+    }
+
+    return this.notificationsService.createIfNotExists({
+      userId: params.siteManagerId,
+      type: params.type,
+      title: params.title,
+      message: params.message,
+      severity: params.severity,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+    });
+  }
+
   private async checkMilestonesReadyForValidation() {
     const milestones = await this.prisma.milestone.findMany({
       where: {
@@ -81,30 +122,36 @@ export class DeadlinesService {
             id: true,
             name: true,
             projectManagerId: true,
+            siteManagerId: true,
           },
         },
       },
     });
 
     for (const milestone of milestones) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const notif = await this.notificationsService.createIfNotExists({
-        userId: milestone.project.projectManagerId,
+      const common = {
         type: NotificationType.MILESTONE_READY_FOR_VALIDATION,
         title: 'Milestone prêt à être validé',
         message: `Le milestone "${milestone.name}" du projet "${milestone.project.name}" est prêt à être validé.`,
         severity: NotificationSeverityEnum.INFO,
         sourceType: NotificationSourceType.MILESTONE,
         sourceId: milestone.id,
+      };
+
+      const notif1 = await this.createProjectManagerNotification({
+        projectManagerId: milestone.project.projectManagerId,
+        ...common,
       });
+
+      const notif2 = await this.createSiteManagerNotification({
+        siteManagerId: milestone.project.siteManagerId,
+        ...common,
+      });
+
+      this.logger.debug({ notif1, notif2 });
     }
   }
 
-  /**
-   * 2) Milestone demain deadline
-   * dueDate = demain
-   * status != ACHIEVED && status != CANCELLED
-   */
   private async checkMilestonesDueTomorrow(start: Date, end: Date) {
     const milestones = await this.prisma.milestone.findMany({
       where: {
@@ -122,30 +169,36 @@ export class DeadlinesService {
             id: true,
             name: true,
             projectManagerId: true,
+            siteManagerId: true,
           },
         },
       },
     });
 
     for (const milestone of milestones) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const notif = await this.notificationsService.createIfNotExists({
-        userId: milestone.project.projectManagerId,
+      const common = {
         type: NotificationType.MILESTONE_DUE_TOMORROW,
         title: 'Milestone à échéance demain',
         message: `Le milestone "${milestone.name}" du projet "${milestone.project.name}" arrive à échéance demain.`,
         severity: NotificationSeverityEnum.WARNING,
         sourceType: NotificationSourceType.MILESTONE,
         sourceId: milestone.id,
+      };
+
+      const notif1 = await this.createProjectManagerNotification({
+        projectManagerId: milestone.project.projectManagerId,
+        ...common,
       });
+
+      const notif2 = await this.createSiteManagerNotification({
+        siteManagerId: milestone.project.siteManagerId,
+        ...common,
+      });
+
+      this.logger.debug({ notif1, notif2 });
     }
   }
 
-  /**
-   * 3) Task demain deadline
-   * endDate = demain
-   * status != DONE
-   */
   private async checkTasksDueTomorrow(start: Date, end: Date) {
     const tasks = await this.prisma.task.findMany({
       where: {
@@ -166,6 +219,7 @@ export class DeadlinesService {
                 id: true,
                 name: true,
                 projectManagerId: true,
+                siteManagerId: true,
               },
             },
           },
@@ -174,24 +228,29 @@ export class DeadlinesService {
     });
 
     for (const task of tasks) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const notif = await this.notificationsService.createIfNotExists({
-        userId: task.phase.project.projectManagerId,
+      const common = {
         type: NotificationType.TASK_DUE_TOMORROW,
         title: 'Tâche à échéance demain',
         message: `La tâche "${task.name}" de la phase "${task.phase.name}" du projet "${task.phase.project.name}" arrive à échéance demain.`,
         severity: NotificationSeverityEnum.WARNING,
         sourceType: NotificationSourceType.TASK,
         sourceId: task.id,
+      };
+
+      const notif1 = await this.createProjectManagerNotification({
+        projectManagerId: task.phase.project.projectManagerId,
+        ...common,
       });
+
+      const notif2 = await this.createSiteManagerNotification({
+        siteManagerId: task.phase.project.siteManagerId,
+        ...common,
+      });
+
+      this.logger.debug({ notif1, notif2 });
     }
   }
 
-  /**
-   * 4) Phase demain deadline
-   * endDate = demain
-   * status != COMPLETED
-   */
   private async checkPhasesDueTomorrow(start: Date, end: Date) {
     const phases = await this.prisma.phase.findMany({
       where: {
@@ -210,30 +269,36 @@ export class DeadlinesService {
             id: true,
             name: true,
             projectManagerId: true,
+            siteManagerId: true,
           },
         },
       },
     });
 
     for (const phase of phases) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const notif = await this.notificationsService.createIfNotExists({
-        userId: phase.project.projectManagerId,
+      const common = {
         type: NotificationType.PHASE_DUE_TOMORROW,
         title: 'Phase à échéance demain',
         message: `La phase "${phase.name}" du projet "${phase.project.name}" arrive à échéance demain.`,
         severity: NotificationSeverityEnum.WARNING,
         sourceType: NotificationSourceType.PHASE,
         sourceId: phase.id,
+      };
+
+      const notif1 = await this.createProjectManagerNotification({
+        projectManagerId: phase.project.projectManagerId,
+        ...common,
       });
+
+      const notif2 = await this.createSiteManagerNotification({
+        siteManagerId: phase.project.siteManagerId,
+        ...common,
+      });
+
+      this.logger.debug({ notif1, notif2 });
     }
   }
 
-  /**
-   * 5) Project demain deadline
-   * endDate = demain
-   * status != TERMINE && status != ANNULE
-   */
   private async checkProjectsDueTomorrow(start: Date, end: Date) {
     const projects = await this.prisma.project.findMany({
       where: {
@@ -251,20 +316,31 @@ export class DeadlinesService {
         endDate: true,
         status: true,
         projectManagerId: true,
+        siteManagerId: true,
       },
     });
 
     for (const project of projects) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const notif = await this.notificationsService.createIfNotExists({
-        userId: project.projectManagerId,
+      const common = {
         type: NotificationType.PROJECT_DUE_TOMORROW,
         title: 'Projet à échéance demain',
         message: `Le projet "${project.name}" arrive à échéance demain.`,
         severity: NotificationSeverityEnum.CRITICAL,
         sourceType: NotificationSourceType.PROJECT,
         sourceId: project.id,
+      };
+
+      const notif1 = await this.createProjectManagerNotification({
+        projectManagerId: project.projectManagerId,
+        ...common,
       });
+
+      const notif2 = await this.createSiteManagerNotification({
+        siteManagerId: project.siteManagerId,
+        ...common,
+      });
+
+      this.logger.debug({ notif1, notif2 });
     }
   }
 }
