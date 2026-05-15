@@ -36,6 +36,7 @@ import { NotificationsModule } from './modules/Notification/notifications.module
 import { DeadlinesModule } from './modules/deadlines/deadlines.module';
 import { AiModule } from './modules/AI//ai.module';
 import { AnomalieModule } from './modules/anomalie/anomalie.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -70,6 +71,7 @@ import { AnomalieModule } from './modules/anomalie/anomalie.module';
     DeadlinesModule,
     AiModule,
     AnomalieModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [
