@@ -502,6 +502,7 @@ model MaterialAssignment {
   task        Task      @relation(fields: [taskId], references: [id])
 
   quantity    Float
+  usedQuantity Float    @default(0)
 
   notes       String?
   startDate   DateTime

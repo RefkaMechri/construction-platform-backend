@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { PhasesController } from './controllers/phases.controller';
 import { PhasesRepository } from './repositories/phases.repository';
@@ -7,7 +7,7 @@ import { ProjectsModule } from './projects.module';
 import { PhasesSchedulerService } from './services/phases-scheduler.service';
 
 @Module({
-  imports: [ProjectsModule],
+  imports: [forwardRef(() => ProjectsModule)],
   controllers: [PhasesController],
   providers: [
     PhasesService,

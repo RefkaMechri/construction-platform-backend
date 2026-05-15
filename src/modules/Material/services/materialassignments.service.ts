@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -355,5 +356,64 @@ export class MaterialAssignmentsService {
       status: assignment.status,
       notes: assignment.notes,
     }));
+  }
+  private ensureSiteManager(currentUser: any) {
+    if (!currentUser) {
+      throw new ForbiddenException('Utilisateur non authentifié.');
+    }
+  }
+  async updateTaskMaterialUsage(
+    projectId: number,
+    taskId: number,
+    assignmentId: number,
+    usedQuantity: number,
+    user: any,
+  ) {
+    this.ensureSiteManager(user);
+
+    const assignment =
+      await this.materialAssignmentsRepository.findMaterialAssignmentInAssignedProjectTask(
+        projectId,
+        taskId,
+        assignmentId,
+        Number(user.id),
+      );
+
+    if (!assignment) {
+      throw new NotFoundException(
+        'Matériau introuvable ou non lié à cette tâche.',
+      );
+    }
+
+    const assignedQuantity = Number(assignment.quantity);
+    const numericUsedQuantity = Number(usedQuantity);
+
+    if (Number.isNaN(numericUsedQuantity)) {
+      throw new BadRequestException('Quantité utilisée invalide.');
+    }
+
+    if (numericUsedQuantity < 0) {
+      throw new BadRequestException(
+        'La quantité utilisée ne peut pas être négative.',
+      );
+    }
+
+    let status = 'RESERVED';
+
+    if (numericUsedQuantity === 0) {
+      status = 'RESERVED';
+    } else if (numericUsedQuantity < assignedQuantity) {
+      status = 'PARTIALLY_USED';
+    } else if (numericUsedQuantity === assignedQuantity) {
+      status = 'USED';
+    } else {
+      status = 'OVER_USED';
+    }
+
+    return this.materialAssignmentsRepository.updateMaterialAssignmentUsage(
+      assignmentId,
+      numericUsedQuantity,
+      status,
+    );
   }
 }

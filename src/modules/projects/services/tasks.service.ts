@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -500,5 +501,32 @@ export class TasksService {
     }
 
     return this.tasksRepository.findByProject(projectId);
+  }
+  private ensureSiteManager(currentUser: any) {
+    if (!currentUser) {
+      throw new ForbiddenException('Utilisateur non authentifié.');
+    }
+  }
+  async getAssignedProjectTaskDetails(
+    projectId: number,
+    taskId: number,
+    user: any,
+  ) {
+    this.ensureSiteManager(user);
+
+    const task = await this.tasksRepository.findAssignedProjectTaskDetails(
+      projectId,
+      taskId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      Number(user.id),
+    );
+
+    if (!task) {
+      throw new NotFoundException(
+        'Tâche introuvable ou non liée à un projet assigné à ce conducteur de travaux.',
+      );
+    }
+
+    return task;
   }
 }
