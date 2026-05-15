@@ -270,6 +270,8 @@ model Task {
 
   predecessors  TaskDependency[] @relation("DependencySuccessor")
   successors    TaskDependency[] @relation("DependencyPredecessor")
+  
+  anomalies     TaskAnomaly[]
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -651,4 +653,41 @@ model PortfolioAIAnalysis {
 
   @@index([tenantId])
   @@map("portfolio_ai_analyses")
+}
+//************************************************************/
+//*             TASK ANOMALIES                               */
+//************************************************************/
+
+enum TaskAnomalySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskAnomalyStatus {
+  OPEN
+  RESOLVED
+}
+
+model TaskAnomaly {
+  id          Int                 @id @default(autoincrement())
+
+  title       String
+  description String?
+  severity    TaskAnomalySeverity @default(MEDIUM)
+  status      TaskAnomalyStatus   @default(OPEN)
+
+ photoUrls String[] @default([])
+
+  taskId      Int
+  task        Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([taskId])
+  @@index([status])
+  @@index([severity])
+  @@map("task_anomalies")
 }

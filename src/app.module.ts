@@ -35,6 +35,7 @@ import { ProjectBudgetItemsModule } from './modules/project-budget/Project-budge
 import { NotificationsModule } from './modules/Notification/notifications.module';
 import { DeadlinesModule } from './modules/deadlines/deadlines.module';
 import { AiModule } from './modules/AI//ai.module';
+import { AnomalieModule } from './modules/anomalie/anomalie.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -68,6 +69,7 @@ import { AiModule } from './modules/AI//ai.module';
     NotificationsModule,
     DeadlinesModule,
     AiModule,
+    AnomalieModule,
   ],
   controllers: [AppController],
   providers: [
