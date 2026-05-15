@@ -71,4 +71,119 @@ export class TasksRepository {
       where: { id },
     });
   }
+  async findAssignedProjectTaskDetails(
+    projectId: number,
+    taskId: number,
+    siteManagerId: number,
+  ) {
+    return this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        phase: {
+          project: {
+            id: projectId,
+            siteManagerId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        baselineStartDate: true,
+        baselineEndDate: true,
+        status: true,
+        priority: true,
+        order: true,
+        phaseId: true,
+        parentTaskId: true,
+        milestoneId: true,
+        createdAt: true,
+        updatedAt: true,
+
+        phase: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            project: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                siteManagerId: true,
+              },
+            },
+          },
+        },
+
+        milestone: {
+          select: {
+            id: true,
+            name: true,
+            dueDate: true,
+            status: true,
+          },
+        },
+
+        subtasks: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startDate: true,
+            endDate: true,
+            baselineStartDate: true,
+            baselineEndDate: true,
+            status: true,
+            priority: true,
+            order: true,
+            phaseId: true,
+            parentTaskId: true,
+            milestoneId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: [{ order: 'asc' }, { startDate: 'asc' }, { id: 'asc' }],
+        },
+
+        assignmentsMt: {
+          select: {
+            id: true,
+            quantity: true,
+            usedQuantity: true,
+            status: true,
+            notes: true,
+            startDate: true,
+            createdAt: true,
+            updatedAt: true,
+            materialId: true,
+            taskId: true,
+            material: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                description: true,
+                category: true,
+                brand: true,
+                quantity: true,
+                reservedQuantity: true,
+                unit: true,
+                quality: true,
+                status: true,
+                availabilityStatus: true,
+                unitPrice: true,
+              },
+            },
+          },
+          orderBy: {
+            id: 'asc',
+          },
+        },
+      },
+    });
+  }
 }

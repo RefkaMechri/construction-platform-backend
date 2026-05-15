@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { TasksController } from './controllers/tasks.controller';
 import { TasksRepository } from './repositories/tasks.repository';
@@ -10,7 +10,11 @@ import { MilestonesModule } from './milestones.module';
 import { TaskSchedulingService } from './services/task-scheduling.service';
 
 @Module({
-  imports: [PhasesModule, ProjectsModule, MilestonesModule],
+  imports: [
+    forwardRef(() => PhasesModule),
+    forwardRef(() => ProjectsModule),
+    MilestonesModule,
+  ],
   controllers: [TasksController],
   providers: [
     TasksService,

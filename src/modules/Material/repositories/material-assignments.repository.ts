@@ -102,4 +102,78 @@ export class MaterialAssignmentsRepository {
       },
     });
   }
+  async findMaterialAssignmentInAssignedProjectTask(
+    projectId: number,
+    taskId: number,
+    assignmentId: number,
+    siteManagerId: number,
+  ) {
+    return this.prisma.materialAssignment.findFirst({
+      where: {
+        id: assignmentId,
+        taskId,
+        task: {
+          phase: {
+            project: {
+              id: projectId,
+              siteManagerId,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        quantity: true,
+        usedQuantity: true,
+        status: true,
+        taskId: true,
+        materialId: true,
+        material: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+          },
+        },
+      },
+    });
+  }
+  async updateMaterialAssignmentUsage(
+    assignmentId: number,
+    usedQuantity: number,
+    status: string,
+  ) {
+    return this.prisma.materialAssignment.update({
+      where: {
+        id: assignmentId,
+      },
+      data: {
+        usedQuantity,
+        status,
+      },
+      select: {
+        id: true,
+        quantity: true,
+        usedQuantity: true,
+        status: true,
+        notes: true,
+        startDate: true,
+        createdAt: true,
+        updatedAt: true,
+        materialId: true,
+        taskId: true,
+        material: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            category: true,
+            brand: true,
+            unit: true,
+            unitPrice: true,
+          },
+        },
+      },
+    });
+  }
 }
