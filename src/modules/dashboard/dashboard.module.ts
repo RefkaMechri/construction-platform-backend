@@ -5,6 +5,8 @@ import { DashboardRepository } from './repositories/dashboard.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { DashboardAdminService } from './services/dashboard_admin.service';
 import { DashboardAdminRepository } from './repositories/dashboard_admin.repository';
+import { ResourceDashboardService } from './services/resource-dashboard.service';
+import { ResourceDashboardRepository } from './repositories/resource-dashboard.repository';
 
 @Module({
   controllers: [DashboardController],
@@ -13,6 +15,8 @@ import { DashboardAdminRepository } from './repositories/dashboard_admin.reposit
     DashboardAdminService,
     DashboardAdminRepository,
     DashboardRepository,
+    ResourceDashboardService,
+    ResourceDashboardRepository,
     PrismaService,
   ],
 })
