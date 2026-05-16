@@ -46,4 +46,8 @@ export class ProjectsController {
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     return this.projectsService.remove(id, req.user as any);
   }
+  @Get(':id/tracking')
+  getProjectTracking(@Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getProjectTracking(id);
+  }
 }

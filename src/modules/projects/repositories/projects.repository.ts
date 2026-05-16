@@ -455,4 +455,85 @@ export class ProjectsRepository {
       },
     });
   }
+  findProjectTracking(projectId: number) {
+    return this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+
+        phases: {
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            order: true,
+
+            tasks: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+                priority: true,
+                startDate: true,
+                endDate: true,
+                order: true,
+                updatedAt: true,
+                subtasks: {
+                  orderBy: {
+                    order: 'asc',
+                  },
+                  select: {
+                    id: true,
+                    name: true,
+                    status: true,
+                    priority: true,
+                    startDate: true,
+                    endDate: true,
+                    order: true,
+                    updatedAt: true,
+                    anomalies: {
+                      orderBy: {
+                        createdAt: 'desc',
+                      },
+                      select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        severity: true,
+                        status: true,
+                        photoUrls: true,
+                        createdAt: true,
+                        updatedAt: true,
+                      },
+                    },
+                  },
+                },
+                anomalies: {
+                  orderBy: { createdAt: 'desc' },
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    severity: true,
+                    status: true,
+                    photoUrls: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
