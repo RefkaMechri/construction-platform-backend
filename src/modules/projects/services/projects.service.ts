@@ -365,4 +365,300 @@ export class ProjectsService {
 
     return this.projectsRepository.updateTaskStatus(taskId, status);
   }
+  async getProjectTracking(projectId: number) {
+    const project =
+      await this.projectsRepository.findProjectTracking(projectId);
+
+    if (!project) {
+      throw new NotFoundException('Projet introuvable.');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const getIsLate = (status: string, endDate?: Date | null) => {
+      if (status === 'DONE') return false;
+      if (status === 'OVERDUE') return true;
+      if (!endDate) return false;
+
+      return new Date(endDate) < today;
+    };
+
+    const getDaysLate = (status: string, endDate?: Date | null) => {
+      const isLate = getIsLate(status, endDate);
+
+      if (!isLate || !endDate) return 0;
+
+      return Math.ceil(
+        (today.getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24),
+      );
+    };
+
+    const getTaskProgress = (task: any) => {
+      const subtasks = task.subtasks ?? [];
+
+      if (subtasks.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        const completedSubtasks = subtasks.filter(
+          (subtask) => subtask.status === 'DONE',
+        ).length;
+
+        return Math.round((completedSubtasks / subtasks.length) * 100);
+      }
+
+      if (task.status === 'DONE') return 100;
+      if (task.status === 'IN_PROGRESS') return 50;
+      if (task.status === 'BLOCKED') return 25;
+      if (task.status === 'OVERDUE') return 20;
+
+      return 0;
+    };
+
+    const tasks = project.phases.flatMap((phase) =>
+      phase.tasks.map((task) => {
+        const subtasks = task.subtasks ?? [];
+        const allAnomalies = [
+          ...(task.anomalies ?? []),
+          ...subtasks.flatMap((subtask) => subtask.anomalies ?? []),
+        ];
+
+        const openAnomalies = allAnomalies.filter(
+          (anomaly) => anomaly.status === 'OPEN',
+        );
+
+        const resolvedAnomalies = allAnomalies.filter(
+          (anomaly) => anomaly.status === 'RESOLVED',
+        );
+
+        const isLate = getIsLate(task.status, task.endDate);
+        const daysLate = getDaysLate(task.status, task.endDate);
+
+        const completedSubtasks = subtasks.filter(
+          (subtask) => subtask.status === 'DONE',
+        ).length;
+
+        return {
+          id: task.id,
+          name: task.name,
+          description: task.description,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          status: task.status,
+          priority: task.priority,
+          startDate: task.startDate,
+          endDate: task.endDate,
+          updatedAt: task.updatedAt,
+          progress: getTaskProgress(task),
+          isLate,
+          daysLate,
+          totalSubtasks: subtasks.length,
+          completedSubtasks,
+          anomaliesCount: allAnomalies.length,
+          openAnomaliesCount: openAnomalies.length,
+          resolvedAnomaliesCount: resolvedAnomalies.length,
+          criticalOpenAnomaliesCount: openAnomalies.filter(
+            (anomaly) =>
+              anomaly.severity === 'CRITICAL' || anomaly.severity === 'HIGH',
+          ).length,
+        };
+      }),
+    );
+
+    const anomalies = project.phases.flatMap((phase) =>
+      phase.tasks.flatMap((task) => {
+        const taskAnomalies = (task.anomalies ?? []).map((anomaly) => ({
+          id: anomaly.id,
+          title: anomaly.title,
+          description: anomaly.description,
+          severity: anomaly.severity,
+          status: anomaly.status,
+          photoUrls: anomaly.photoUrls,
+          taskId: task.id,
+          taskName: task.name,
+          subtaskId: null,
+          subtaskName: null,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          declaredAt: anomaly.createdAt,
+          resolvedAt: anomaly.status === 'RESOLVED' ? anomaly.updatedAt : null,
+        }));
+
+        const subtaskAnomalies = (task.subtasks ?? []).flatMap((subtask) =>
+          (subtask.anomalies ?? []).map((anomaly) => ({
+            id: anomaly.id,
+            title: anomaly.title,
+            description: anomaly.description,
+            severity: anomaly.severity,
+            status: anomaly.status,
+            photoUrls: anomaly.photoUrls,
+            taskId: task.id,
+            taskName: task.name,
+            subtaskId: subtask.id,
+            subtaskName: subtask.name,
+            phaseId: phase.id,
+            phaseName: phase.name,
+            declaredAt: anomaly.createdAt,
+            resolvedAt:
+              anomaly.status === 'RESOLVED' ? anomaly.updatedAt : null,
+          })),
+        );
+
+        return [...taskAnomalies, ...subtaskAnomalies];
+      }),
+    );
+
+    const phasesTracking = project.phases.map((phase) => {
+      const phaseTasks = phase.tasks ?? [];
+
+      const phaseTaskItems = phaseTasks.map((task) => {
+        const subtasks = task.subtasks ?? [];
+
+        const completedSubtasks = subtasks.filter(
+          (subtask) => subtask.status === 'DONE',
+        ).length;
+
+        const taskProgress = getTaskProgress(task);
+
+        const taskAnomalies = [
+          ...(task.anomalies ?? []),
+          ...subtasks.flatMap((subtask) => subtask.anomalies ?? []),
+        ];
+
+        const openAnomalies = taskAnomalies.filter(
+          (anomaly) => anomaly.status === 'OPEN',
+        );
+
+        const resolvedAnomalies = taskAnomalies.filter(
+          (anomaly) => anomaly.status === 'RESOLVED',
+        );
+
+        return {
+          id: task.id,
+          name: task.name,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          startDate: task.startDate,
+          endDate: task.endDate,
+          progress: taskProgress,
+          isLate: getIsLate(task.status, task.endDate),
+          daysLate: getDaysLate(task.status, task.endDate),
+          totalSubtasks: subtasks.length,
+          completedSubtasks,
+          openAnomalies: openAnomalies.length,
+          resolvedAnomalies: resolvedAnomalies.length,
+          criticalAnomalies: openAnomalies.filter(
+            (anomaly) =>
+              anomaly.severity === 'CRITICAL' || anomaly.severity === 'HIGH',
+          ).length,
+          subtasks: subtasks.map((subtask) => ({
+            id: subtask.id,
+            name: subtask.name,
+            status: subtask.status,
+            priority: subtask.priority,
+            startDate: subtask.startDate,
+            endDate: subtask.endDate,
+            isLate: getIsLate(subtask.status, subtask.endDate),
+            daysLate: getDaysLate(subtask.status, subtask.endDate),
+            anomaliesCount: (subtask.anomalies ?? []).length,
+            openAnomaliesCount: (subtask.anomalies ?? []).filter(
+              (anomaly) => anomaly.status === 'OPEN',
+            ).length,
+            resolvedAnomaliesCount: (subtask.anomalies ?? []).filter(
+              (anomaly) => anomaly.status === 'RESOLVED',
+            ).length,
+          })),
+        };
+      });
+
+      const phaseProgress =
+        phaseTaskItems.length > 0
+          ? Math.round(
+              phaseTaskItems.reduce((sum, task) => sum + task.progress, 0) /
+                phaseTaskItems.length,
+            )
+          : 0;
+
+      return {
+        id: phase.id,
+        name: phase.name,
+        status: phase.status,
+        progress: phaseProgress,
+        totalTasks: phaseTaskItems.length,
+        completedTasks: phaseTaskItems.filter((task) => task.progress === 100)
+          .length,
+        openAnomalies: phaseTaskItems.reduce(
+          (sum, task) => sum + task.openAnomalies,
+          0,
+        ),
+        resolvedAnomalies: phaseTaskItems.reduce(
+          (sum, task) => sum + task.resolvedAnomalies,
+          0,
+        ),
+        criticalAnomalies: phaseTaskItems.reduce(
+          (sum, task) => sum + task.criticalAnomalies,
+          0,
+        ),
+        lateTasks: phaseTaskItems.filter((task) => task.isLate).length,
+        tasks: phaseTaskItems,
+      };
+    });
+
+    const phasesProgress = phasesTracking.map((phase) => ({
+      id: phase.id,
+      name: phase.name,
+      status: phase.status,
+      totalTasks: phase.totalTasks,
+      completedTasks: phase.completedTasks,
+      progress: phase.progress,
+      openAnomalies: phase.openAnomalies,
+      resolvedAnomalies: phase.resolvedAnomalies,
+      criticalAnomalies: phase.criticalAnomalies,
+      lateTasks: phase.lateTasks,
+    }));
+
+    const completedTasks = tasks.filter((task) => task.progress === 100).length;
+
+    return {
+      project: {
+        id: project.id,
+        name: project.name,
+        code: project.code,
+        status: project.status,
+        startDate: project.startDate,
+        endDate: project.endDate,
+      },
+
+      summary: {
+        totalTasks: tasks.length,
+        completedTasks,
+        progress:
+          tasks.length > 0
+            ? Math.round(
+                tasks.reduce((sum, task) => sum + task.progress, 0) /
+                  tasks.length,
+              )
+            : 0,
+        tasksWithAnomalies: tasks.filter((task) => task.anomaliesCount > 0)
+          .length,
+        lateTasks: tasks.filter((task) => task.isLate).length,
+        totalAnomalies: anomalies.length,
+        openAnomalies: anomalies.filter((anomaly) => anomaly.status === 'OPEN')
+          .length,
+        resolvedAnomalies: anomalies.filter(
+          (anomaly) => anomaly.status === 'RESOLVED',
+        ).length,
+        criticalOpenAnomalies: anomalies.filter(
+          (anomaly) =>
+            anomaly.status === 'OPEN' &&
+            (anomaly.severity === 'CRITICAL' || anomaly.severity === 'HIGH'),
+        ).length,
+      },
+
+      phasesProgress,
+      phasesTracking,
+      taskProgress: tasks,
+      anomalies,
+    };
+  }
 }
