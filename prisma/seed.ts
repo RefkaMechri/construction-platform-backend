@@ -38,12 +38,6 @@ async function main() {
   // -----------------------------
   // Reset popular flag for plans
   // -----------------------------
-  await prisma.subscriptionPlan.updateMany({
-    data: {
-      isPopular: false,
-    },
-  });
-
   // -----------------------------
   // Subscription Plans
   // -----------------------------
@@ -53,16 +47,14 @@ async function main() {
       price: 49,
       period: '/mois',
       icon: 'box',
-      isPopular: false,
       usersLimit: '5',
       projectsLimit: '10',
-      storageLimit: '10 GB',
-      supportType: 'Email',
       features: [
         'Gestion de projets',
-        'Planning de base',
-        'Suivi des coûts',
-        '10 GB de stockage',
+        'Planning avancé',
+        'Application mobile dédiée au suivi de chantier',
+        'Rapports avancés',
+        'Aide à la prise de décision',
         'Support par email',
       ],
     },
@@ -71,16 +63,14 @@ async function main() {
       price: 49,
       period: '/mois',
       icon: 'box',
-      isPopular: false,
       usersLimit: '5',
       projectsLimit: '10',
-      storageLimit: '10 GB',
-      supportType: 'Email',
       features: [
         'Gestion de projets',
-        'Planning de base',
-        'Suivi des coûts',
-        '10 GB de stockage',
+        'Planning avancé',
+        'Application mobile dédiée au suivi de chantier',
+        'Rapports avancés',
+        'Aide à la prise de décision',
         'Support par email',
       ],
     },
@@ -92,18 +82,12 @@ async function main() {
       price: 199,
       period: '/mois',
       icon: 'box',
-      isPopular: true,
       usersLimit: '25',
       projectsLimit: '50',
-      storageLimit: '100 GB',
-      supportType: 'Prioritaire',
       features: [
         'Tout Basic +',
         'Gestion des ressources',
-        'Planning Gantt',
-        'Rapports avancés',
-        '100 GB de stockage',
-        'Support prioritaire',
+        'Affectation des ressources',
       ],
     },
     create: {
@@ -111,18 +95,12 @@ async function main() {
       price: 199,
       period: '/mois',
       icon: 'box',
-      isPopular: true,
       usersLimit: '25',
       projectsLimit: '50',
-      storageLimit: '100 GB',
-      supportType: 'Prioritaire',
       features: [
         'Tout Basic +',
         'Gestion des ressources',
-        'Planning Gantt',
-        'Rapports avancés',
-        '100 GB de stockage',
-        'Support prioritaire',
+        'Affectation des ressources',
       ],
     },
   });
@@ -133,19 +111,16 @@ async function main() {
       price: 499,
       period: '/mois',
       icon: 'crown',
-      isPopular: false,
       usersLimit: 'Illimité',
       projectsLimit: 'Illimité',
-      storageLimit: 'Illimité',
-      supportType: 'Dédié 24/7',
       features: [
-        'Tout Professional +',
+        'Tout Pro +',
+        'Gestion des coûts',
+        'Suivi budgétaire',
+        'Analyse budgétaire',
         'Utilisateurs illimités',
         'Projets illimités',
-        'Stockage illimité',
-        'API personnalisée',
         'Support dédié 24/7',
-        'Formation personnalisée',
       ],
     },
     create: {
@@ -153,23 +128,19 @@ async function main() {
       price: 499,
       period: '/mois',
       icon: 'crown',
-      isPopular: false,
       usersLimit: 'Illimité',
       projectsLimit: 'Illimité',
-      storageLimit: 'Illimité',
-      supportType: 'Dédié 24/7',
       features: [
-        'Tout Professional +',
+        'Tout Pro +',
+        'Gestion des coûts',
+        'Suivi budgétaire',
+        'Analyse budgétaire',
         'Utilisateurs illimités',
         'Projets illimités',
-        'Stockage illimité',
-        'API personnalisée',
         'Support dédié 24/7',
-        'Formation personnalisée',
       ],
     },
   });
-
   console.log('Subscription plans seeded successfully.');
 
   // -----------------------------

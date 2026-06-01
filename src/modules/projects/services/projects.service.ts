@@ -58,6 +58,36 @@ export class ProjectsService {
       throw new BadRequestException("L'utilisateur n'est lié à aucun tenant.");
     }
 
+    const tenant = await this.projectsRepository.findTenantById(user.tenantId);
+
+    if (!tenant) {
+      throw new BadRequestException('Tenant introuvable.');
+    }
+
+    const subscriptionPlan =
+      await this.projectsRepository.findSubscriptionPlanByName(tenant.plan);
+
+    if (!subscriptionPlan) {
+      throw new BadRequestException(
+        `Le plan "${tenant.plan}" est introuvable dans les plans de souscription.`,
+      );
+    }
+
+    const currentProjectsCount = await this.projectsRepository.countByTenant(
+      user.tenantId,
+    );
+
+    const projectsLimit = subscriptionPlan.projectsLimit;
+
+    if (
+      projectsLimit.toLowerCase() !== 'illimité' &&
+      currentProjectsCount >= Number(projectsLimit)
+    ) {
+      throw new BadRequestException(
+        `Limite atteinte : votre plan ${subscriptionPlan.name} permet au maximum ${projectsLimit} projets.`,
+      );
+    }
+
     if (!createProjectDto.siteManagerId) {
       throw new BadRequestException('Le responsable chantier est obligatoire.');
     }
@@ -77,8 +107,7 @@ export class ProjectsService {
       createProjectDto.floorsCount,
     );
 
-    const count = await this.projectsRepository.countByTenant(user.tenantId);
-    const code = this.generateProjectCode(count + 1);
+    const code = this.generateProjectCode(currentProjectsCount + 1);
 
     const project = await this.projectsRepository.create({
       name: createProjectDto.name,

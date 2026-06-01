@@ -91,19 +91,14 @@ model SubscriptionPlan {
   price      Float
   period     String   @default("/mois")
   icon       String   @default("box")
-  isPopular  Boolean  @default(false)
 
   usersLimit    String
   projectsLimit String
-  storageLimit  String
-  supportType   String
+  features      String[]
 
-  features   String[]
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
 model featureModule {
   id           Int      @id @default(autoincrement())
   name         String   @unique
