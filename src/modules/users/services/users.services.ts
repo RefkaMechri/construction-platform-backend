@@ -131,14 +131,17 @@ export class UsersService {
         console.log('👥 Nombre actuel d’utilisateurs:', usersCount);
 
         // 5) Vérifier la limite du plan
+        const usersLimit = subscription.usersLimit.trim().toLowerCase();
+
         const isUnlimited =
-          subscription.usersLimit.toLowerCase() === 'illimité' ||
-          subscription.usersLimit.toLowerCase() === 'unlimited';
+          usersLimit === 'illimité' ||
+          usersLimit === 'illimite' ||
+          usersLimit === 'unlimited';
 
         if (!isUnlimited) {
           const maxUsers = Number(subscription.usersLimit);
 
-          if (Number.isNaN(maxUsers)) {
+          if (!Number.isFinite(maxUsers) || maxUsers < 0) {
             throw new BadRequestException(
               `Limite utilisateurs invalide pour le plan ${subscription.name}`,
             );

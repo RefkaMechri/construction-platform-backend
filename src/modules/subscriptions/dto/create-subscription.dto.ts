@@ -1,6 +1,5 @@
 import {
   IsArray,
-  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,11 +10,11 @@ import {
 export class CreateSubscriptionDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsNumber()
   @Min(0)
-  price: number;
+  price!: number;
 
   @IsString()
   @IsOptional()
@@ -25,27 +24,15 @@ export class CreateSubscriptionDto {
   @IsOptional()
   icon?: string;
 
-  @IsBoolean()
-  @IsOptional()
-  isPopular?: boolean;
+  @IsString()
+  @IsNotEmpty()
+  usersLimit!: string;
 
   @IsString()
   @IsNotEmpty()
-  usersLimit: string;
-
-  @IsString()
-  @IsNotEmpty()
-  projectsLimit: string;
-
-  @IsString()
-  @IsNotEmpty()
-  storageLimit: string;
-
-  @IsString()
-  @IsNotEmpty()
-  supportType: string;
+  projectsLimit!: string;
 
   @IsArray()
   @IsString({ each: true })
-  features: string[];
+  features!: string[];
 }

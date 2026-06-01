@@ -536,4 +536,19 @@ export class ProjectsRepository {
       },
     });
   }
+  findTenantById(id: number) {
+    return this.prisma.tenant.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        plan: true,
+      },
+    });
+  }
+
+  findSubscriptionPlanByName(name: string) {
+    return this.prisma.subscriptionPlan.findUnique({
+      where: { name },
+    });
+  }
 }
