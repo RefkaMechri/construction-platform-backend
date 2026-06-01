@@ -6,6 +6,7 @@ import {
   NotificationSourceType,
   NotificationType,
 } from '../types/deadline-source.type';
+
 import { NotificationsService } from 'src/modules/Notification/services/notifications.service';
 import { NotificationSeverityEnum } from 'src/modules/Notification/types/notification.types';
 
@@ -18,7 +19,7 @@ export class DeadlinesService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleDailyChecks() {
     const { tomorrowStart, tomorrowEnd } = this.getTomorrowRange();
 
@@ -27,6 +28,8 @@ export class DeadlinesService {
     await this.checkTasksDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkPhasesDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkProjectsDueTomorrow(tomorrowStart, tomorrowEnd);
+
+    await this.checkLowMaterialsStock();
 
     this.logger.log('Vérification quotidienne des deadlines terminée.');
   }
@@ -39,6 +42,8 @@ export class DeadlinesService {
     await this.checkTasksDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkPhasesDueTomorrow(tomorrowStart, tomorrowEnd);
     await this.checkProjectsDueTomorrow(tomorrowStart, tomorrowEnd);
+
+    await this.checkLowMaterialsStock();
 
     return {
       message: 'Vérification des deadlines exécutée avec succès',
@@ -88,9 +93,7 @@ export class DeadlinesService {
     sourceType: NotificationSourceType;
     sourceId: number;
   }) {
-    if (!params.siteManagerId) {
-      return null;
-    }
+    if (!params.siteManagerId) return null;
 
     return this.notificationsService.createIfNotExists({
       userId: params.siteManagerId,
@@ -103,20 +106,46 @@ export class DeadlinesService {
     });
   }
 
+  private async createResourceManagerNotifications(params: {
+    tenantId: number;
+    type: NotificationType;
+    title: string;
+    message: string;
+    severity: NotificationSeverityEnum;
+    sourceType: NotificationSourceType;
+    sourceId: number;
+  }) {
+    const resourceManagers = await this.prisma.user.findMany({
+      where: {
+        tenantId: params.tenantId,
+        role: 'RESOURCE_MANAGER',
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    for (const manager of resourceManagers) {
+      await this.notificationsService.createIfNotExists({
+        userId: manager.id,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        severity: params.severity,
+        sourceType: params.sourceType,
+        sourceId: params.sourceId,
+      });
+    }
+  }
+
   private async checkMilestonesReadyForValidation() {
     const milestones = await this.prisma.milestone.findMany({
       where: {
         status: 'READY_FOR_VALIDATION',
       },
       include: {
-        tasks: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            milestoneId: true,
-          },
-        },
+        tasks: true,
         project: {
           select: {
             id: true,
@@ -138,17 +167,15 @@ export class DeadlinesService {
         sourceId: milestone.id,
       };
 
-      const notif1 = await this.createProjectManagerNotification({
+      await this.createProjectManagerNotification({
         projectManagerId: milestone.project.projectManagerId,
         ...common,
       });
 
-      const notif2 = await this.createSiteManagerNotification({
+      await this.createSiteManagerNotification({
         siteManagerId: milestone.project.siteManagerId,
         ...common,
       });
-
-      this.logger.debug({ notif1, notif2 });
     }
   }
 
@@ -185,17 +212,15 @@ export class DeadlinesService {
         sourceId: milestone.id,
       };
 
-      const notif1 = await this.createProjectManagerNotification({
+      await this.createProjectManagerNotification({
         projectManagerId: milestone.project.projectManagerId,
         ...common,
       });
 
-      const notif2 = await this.createSiteManagerNotification({
+      await this.createSiteManagerNotification({
         siteManagerId: milestone.project.siteManagerId,
         ...common,
       });
-
-      this.logger.debug({ notif1, notif2 });
     }
   }
 
@@ -237,17 +262,15 @@ export class DeadlinesService {
         sourceId: task.id,
       };
 
-      const notif1 = await this.createProjectManagerNotification({
+      await this.createProjectManagerNotification({
         projectManagerId: task.phase.project.projectManagerId,
         ...common,
       });
 
-      const notif2 = await this.createSiteManagerNotification({
+      await this.createSiteManagerNotification({
         siteManagerId: task.phase.project.siteManagerId,
         ...common,
       });
-
-      this.logger.debug({ notif1, notif2 });
     }
   }
 
@@ -285,17 +308,15 @@ export class DeadlinesService {
         sourceId: phase.id,
       };
 
-      const notif1 = await this.createProjectManagerNotification({
+      await this.createProjectManagerNotification({
         projectManagerId: phase.project.projectManagerId,
         ...common,
       });
 
-      const notif2 = await this.createSiteManagerNotification({
+      await this.createSiteManagerNotification({
         siteManagerId: phase.project.siteManagerId,
         ...common,
       });
-
-      this.logger.debug({ notif1, notif2 });
     }
   }
 
@@ -313,8 +334,6 @@ export class DeadlinesService {
       select: {
         id: true,
         name: true,
-        endDate: true,
-        status: true,
         projectManagerId: true,
         siteManagerId: true,
       },
@@ -330,17 +349,44 @@ export class DeadlinesService {
         sourceId: project.id,
       };
 
-      const notif1 = await this.createProjectManagerNotification({
+      await this.createProjectManagerNotification({
         projectManagerId: project.projectManagerId,
         ...common,
       });
 
-      const notif2 = await this.createSiteManagerNotification({
+      await this.createSiteManagerNotification({
         siteManagerId: project.siteManagerId,
         ...common,
       });
+    }
+  }
 
-      this.logger.debug({ notif1, notif2 });
+  private async checkLowMaterialsStock() {
+    const materials = await this.prisma.material.findMany({
+      where: {
+        quantity: {
+          lte: 10,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+        unit: true,
+        tenantId: true,
+      },
+    });
+
+    for (const material of materials) {
+      await this.createResourceManagerNotifications({
+        tenantId: material.tenantId,
+        type: NotificationType.MATERIAL_LOW_STOCK,
+        title: 'Stock matériel faible',
+        message: `Le matériel "${material.name}" a un stock faible : ${material.quantity} ${material.unit}.`,
+        severity: NotificationSeverityEnum.WARNING,
+        sourceType: NotificationSourceType.MATERIAL,
+        sourceId: material.id,
+      });
     }
   }
 }
