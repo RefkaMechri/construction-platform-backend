@@ -28,6 +28,24 @@ export class ProjectBudgetsController {
   getProjectDirectCosts(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.projectBudgetsService.getProjectDirectCosts(projectId);
   }
+  @Get('projects/:projectId/actual-direct-costs')
+  getProjectActualDirectCosts(
+    @Param('projectId', ParseIntPipe) projectId: number,
+  ) {
+    return this.projectBudgetsService.getProjectActualDirectCosts(projectId);
+  }
+  @Get('projects/:projectId/direct-costs-variance')
+  getProjectDirectCostsVariance(
+    @Param('projectId', ParseIntPipe) projectId: number,
+  ) {
+    return this.projectBudgetsService.getProjectDirectCostsVariance(projectId);
+  }
+  @Get('projects/:projectId/budget-overview')
+  getProjectBudgetOverview(
+    @Param('projectId', ParseIntPipe) projectId: number,
+  ) {
+    return this.projectBudgetsService.getProjectBudgetOverview(projectId);
+  }
 
   @Patch('projects/:projectId/contingency')
   updateContingencyRate(
