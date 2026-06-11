@@ -15,6 +15,9 @@ import { OpenRouterBudgetService } from './services/ollama-budget.service';
 import { PortfolioAnalysisController } from './controllers/portfolio-analysis.controller';
 import { PortfolioAnalysisService } from './services/portfolio-analysis.service';
 import { OpenRouterPortfolioService } from './services/openrouter-portfolio.service';
+import { ProjectProgressReportController } from './controllers/project-progress-report.controller';
+import { ProjectProgressReportService } from './services/project-progress-report.service';
+import { OpenRouterProjectProgressReportService } from './services/openrouter-project-progress-report.service';
 @Module({
   controllers: [
     AiPlanningController,
@@ -22,6 +25,7 @@ import { OpenRouterPortfolioService } from './services/openrouter-portfolio.serv
     AiPlanningImpactController,
     AiBudgetController,
     PortfolioAnalysisController,
+    ProjectProgressReportController,
   ],
   providers: [
     PrismaService,
@@ -35,6 +39,9 @@ import { OpenRouterPortfolioService } from './services/openrouter-portfolio.serv
     OpenRouterBudgetService,
     PortfolioAnalysisService,
     OpenRouterPortfolioService,
+
+    ProjectProgressReportService,
+    OpenRouterProjectProgressReportService,
   ],
   exports: [PlanningAnalysisService],
 })

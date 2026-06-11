@@ -174,7 +174,7 @@ model Project {
   aiAnalyses PlanningAIAnalysis[]
   resourceAiAnalyses ResourceAIAnalysis[]
   budgetAIAnalysis BudgetAIAnalysis[]
-
+  progressReports ProjectProgressReport[]
   @@index([tenantId])
   @@index([projectManagerId])
   @@index([status])
@@ -685,4 +685,27 @@ model TaskAnomaly {
   @@index([status])
   @@index([severity])
   @@map("task_anomalies")
+}
+
+model ProjectProgressReport {
+  id Int @id @default(autoincrement())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  report Json
+
+  provider String @default("openrouter")
+  model    String
+
+  generatedBy Int?
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("project_progress_reports")
 }
