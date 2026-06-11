@@ -168,6 +168,7 @@ model Project {
   phases           Phase[]
   milestones       Milestone[]
   budgetDetails     ProjectBudget?
+  financialReports ProjectFinancialReport[]
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -708,4 +709,26 @@ model ProjectProgressReport {
 
   @@index([projectId])
   @@map("project_progress_reports")
+}
+model ProjectFinancialReport {
+  id Int @id @default(autoincrement())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  report Json
+
+  provider String @default("openrouter")
+  model    String
+
+  generatedBy Int?
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("project_financial_reports")
 }

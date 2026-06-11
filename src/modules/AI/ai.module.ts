@@ -18,6 +18,9 @@ import { OpenRouterPortfolioService } from './services/openrouter-portfolio.serv
 import { ProjectProgressReportController } from './controllers/project-progress-report.controller';
 import { ProjectProgressReportService } from './services/project-progress-report.service';
 import { OpenRouterProjectProgressReportService } from './services/openrouter-project-progress-report.service';
+import { ProjectFinancialReportController } from './controllers/project-financial-report.controller';
+import { ProjectFinancialReportService } from './services/project-financial-report.service';
+import { OpenRouterProjectFinancialReportService } from './services/openrouter-project-financial-report.service';
 @Module({
   controllers: [
     AiPlanningController,
@@ -26,6 +29,7 @@ import { OpenRouterProjectProgressReportService } from './services/openrouter-pr
     AiBudgetController,
     PortfolioAnalysisController,
     ProjectProgressReportController,
+    ProjectFinancialReportController,
   ],
   providers: [
     PrismaService,
@@ -42,6 +46,8 @@ import { OpenRouterProjectProgressReportService } from './services/openrouter-pr
 
     ProjectProgressReportService,
     OpenRouterProjectProgressReportService,
+    ProjectFinancialReportService,
+    OpenRouterProjectFinancialReportService,
   ],
   exports: [PlanningAnalysisService],
 })
