@@ -713,4 +713,89 @@ export class ProjectBudgetsService {
         : null,
     };
   }
+  async getBudgetModuleForProjectManager(
+    projectManagerId: number,
+    projectId: number,
+  ) {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        projectManagerId,
+      },
+      include: {
+        budgetDetails: true,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        'Projet introuvable ou non affecté à ce chef de projet',
+      );
+    }
+
+    await this.syncProjectBudgetDirectCosts(projectId);
+
+    const variance = await this.getProjectDirectCostsVariance(projectId);
+
+    const budget = await this.prisma.projectBudget.findUnique({
+      where: { projectId },
+    });
+
+    if (!budget) {
+      throw new NotFoundException('Budget du projet introuvable');
+    }
+
+    const directCostsTotal = budget.directCostsTotal ?? 0;
+    const indirectCostsTotal = budget.indirectCostsTotal ?? 0;
+    const contingencyRate = budget.contingencyRate ?? 0;
+
+    const contingencyAmount =
+      ((directCostsTotal + indirectCostsTotal) * contingencyRate) / 100;
+
+    const budgetPrevisionnel = budget.totalBudget ?? 0;
+    const budgetConsomme = variance.actual.total;
+    const ecartBudgetaire = budgetConsomme - budgetPrevisionnel;
+
+    return {
+      projectId: project.id,
+      projectName: project.name,
+
+      budgetPrevisionnel: {
+        directCostsTotal,
+        indirectCostsTotal,
+        contingencyRate,
+        contingencyAmount,
+        total: budgetPrevisionnel,
+      },
+
+      budgetConsomme: {
+        directCostsConsumed: variance.actual.total,
+        total: budgetConsomme,
+        consumptionRate:
+          budgetPrevisionnel > 0
+            ? Math.round((budgetConsomme / budgetPrevisionnel) * 100)
+            : 0,
+      },
+
+      ecartsBudgetaires: {
+        ecart: ecartBudgetaire,
+        status:
+          budgetConsomme > budgetPrevisionnel
+            ? 'OVER'
+            : budgetConsomme >= budgetPrevisionnel * 0.8
+              ? 'WARNING'
+              : 'ON_TRACK',
+      },
+
+      coutsParPhase: variance.phases.map((phase) => ({
+        phaseId: phase.phaseId,
+        phaseName: phase.phaseName,
+        budgetPrevisionnel: phase.planned.total,
+        budgetConsomme: phase.actual.total,
+        ecart: phase.variance.total,
+        consumptionRate: phase.consumptionRate,
+        status: phase.status,
+      })),
+    };
+  }
 }
