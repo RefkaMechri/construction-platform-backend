@@ -1,0 +1,10 @@
+export enum BudgetNotificationType {
+  BUDGET_WARNING = 'BUDGET_WARNING',
+  BUDGET_EXCEEDED = 'BUDGET_EXCEEDED',
+  PHASE_BUDGET_EXCEEDED = 'PHASE_BUDGET_EXCEEDED',
+}
+
+export enum BudgetNotificationSourceType {
+  PROJECT_BUDGET = 'PROJECT_BUDGET',
+  PHASE = 'PHASE',
+}
