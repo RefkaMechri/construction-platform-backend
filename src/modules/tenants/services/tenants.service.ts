@@ -65,11 +65,52 @@ export class TenantsService {
             createdAt: true,
           },
         },
+        projects: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
     if (!tenant) throw new NotFoundException('Tenant introuvable');
-    return tenant;
+
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: {
+        name: tenant.plan,
+      },
+      select: {
+        usersLimit: true,
+        projectsLimit: true,
+      },
+    });
+
+    const usersCount = tenant.users.length;
+    const projectsCount = tenant.projects.length;
+
+    const admin = tenant.users.find((user) => user.role === 'ADMIN') ?? null;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { projects, ...tenantWithoutProjects } = tenant;
+
+    return {
+      tenant: {
+        ...tenantWithoutProjects,
+        usage: {
+          users: {
+            count: usersCount,
+            limit: plan?.usersLimit ?? 'illimité',
+            display: `${usersCount}/${plan?.usersLimit ?? 'illimité'}`,
+          },
+          projects: {
+            count: projectsCount,
+            limit: plan?.projectsLimit ?? 'illimité',
+            display: `${projectsCount}/${plan?.projectsLimit ?? 'illimité'}`,
+          },
+        },
+      },
+      admin,
+    };
   }
 
   async create(dto: CreateTenantDto) {
@@ -193,7 +234,13 @@ export class TenantsService {
             role: true,
             createdAt: true,
           },
-          take: 1, // on prend 1 seul admin
+          take: 1,
+        },
+        _count: {
+          select: {
+            users: true,
+            projects: true,
+          },
         },
       },
     });
@@ -201,6 +248,22 @@ export class TenantsService {
     if (!tenant) {
       throw new NotFoundException('Tenant introuvable');
     }
+
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: {
+        name: tenant.plan,
+      },
+      select: {
+        usersLimit: true,
+        projectsLimit: true,
+      },
+    });
+
+    const usersCount = tenant._count.users;
+    const projectsCount = tenant._count.projects;
+
+    const usersLimit = plan?.usersLimit ?? 'illimité';
+    const projectsLimit = plan?.projectsLimit ?? 'illimité';
 
     return {
       tenant: {
@@ -216,6 +279,19 @@ export class TenantsService {
         modules: tenant.modules,
         createdAt: tenant.createdAt,
         updatedAt: tenant.updatedAt,
+
+        usage: {
+          users: {
+            count: usersCount,
+            limit: usersLimit,
+            display: `${usersCount}/${usersLimit}`,
+          },
+          projects: {
+            count: projectsCount,
+            limit: projectsLimit,
+            display: `${projectsCount}/${projectsLimit}`,
+          },
+        },
       },
       admin: tenant.users[0] ?? null,
     };

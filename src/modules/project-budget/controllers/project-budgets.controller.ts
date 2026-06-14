@@ -77,6 +77,7 @@ export class ProjectBudgetsController {
     @Param('projectManagerId', ParseIntPipe) projectManagerId: number,
     @Param('projectId', ParseIntPipe) projectId: number,
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.projectBudgetsService.getBudgetModuleForProjectManager(
       projectManagerId,
       projectId,
