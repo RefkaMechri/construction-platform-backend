@@ -72,4 +72,14 @@ export class ProjectBudgetsController {
   getProjectBudgetSummary(@Param('projectId', ParseIntPipe) projectId: number) {
     return this.projectBudgetsService.getProjectBudgetSummary(projectId);
   }
+  @Get('project-managers/:projectManagerId/projects/:projectId/module')
+  getBudgetModuleForProjectManager(
+    @Param('projectManagerId', ParseIntPipe) projectManagerId: number,
+    @Param('projectId', ParseIntPipe) projectId: number,
+  ) {
+    return this.projectBudgetsService.getBudgetModuleForProjectManager(
+      projectManagerId,
+      projectId,
+    );
+  }
 }
