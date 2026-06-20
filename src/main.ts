@@ -26,6 +26,7 @@ async function bootstrap() {
       'http://localhost:5174',
       'http://localhost:8081',
       'http://10.195.24.109:8081',
+      'https://construction-platform-frontend-2tb0.onrender.com',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
